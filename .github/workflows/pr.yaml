@@ -1,0 +1,19 @@
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  merge_group:
+
+name: PR
+
+jobs:
+  conventional-commit:
+    name: "PR title"
+    runs-on: ubuntu-slim
+    steps:
+      - run: |
+          <<<"$TITLE" grep '^\(build\|chore\|ci\|docs\|feat\|fix\|perf\|p\?refactor\|revert\|style\|test\)\(([a-zA-Z0-9_-]\+)\)\?!\?: '
+        env:
+          TITLE: "${{ github.event.pull_request.title || github.event.merge_group.head_commit.message }}"
