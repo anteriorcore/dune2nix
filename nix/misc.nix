@@ -1,0 +1,34 @@
+# Kitchen sink for project internal stuffs
+
+{ inputs, self, ... }:
+{
+  perSystem =
+    {
+      system,
+      pkgs,
+      lib,
+      ...
+    }:
+    let
+      dune2nix = pkgs.callPackage self.lib.dune2nix { };
+    in
+    {
+      _module.args.pkgs = import inputs.nixpkgs {
+        inherit system;
+        overlays = [ self.overlays.dune ];
+      };
+
+      nix-unit = {
+        inherit inputs;
+        allowNetwork = false;
+      };
+
+      # Build all packages as a check.
+      checks = lib.mapAttrs' (k: v: lib.nameValuePair "build-${k}" v) (
+        lib.packagesFromDirectoryRecursive {
+          callPackage = lib.callPackageWith (pkgs // { inherit dune2nix; });
+          directory = ../tests;
+        }
+      );
+    };
+}

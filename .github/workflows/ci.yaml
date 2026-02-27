@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  nocommit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: nobssoftware/nocommit@5c3cf9519fe40b80b0954d254085b67b532a5dc3
+
+  nix-flake-check:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15
+      - uses: determinatesystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
+      - run: nix flake check -L
+
+  nix-flake-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15
+      - uses: determinatesystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
+      - run: nix flake show
+      - run: nix flake lock --no-update-lock-file
+      - run: nix flake check --no-build

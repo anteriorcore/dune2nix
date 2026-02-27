@@ -1,0 +1,29 @@
+# MacOS
+.DS_Store
+
+# Ocaml
+*.annot
+*.cmo
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
+
+_build/
+
+*.byte
+*.native
+
+# Dune
+*.install
+
+# Opam
+_opam/
+.opam/
+
+# Nix
+result
+result-*
