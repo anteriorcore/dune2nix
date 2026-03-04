@@ -27,3 +27,7 @@ _opam/
 # Nix
 result
 result-*
+
+### direnv ###
+.direnv
+.envrc

@@ -8,6 +8,10 @@
           dune
           opam
 
+          # LSPs
+          nixd
+          ocamlPackages.ocaml-lsp
+
           # Opam uses homebrew / macport to install system deps, but I have
           # neither, nor do I want to install them. I still don't if this is the
           # right way, but the packages below are the result of my (and

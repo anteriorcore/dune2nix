@@ -25,6 +25,8 @@
         # prioritize "stronger" hash.
         patches = (old.patches or [ ]) ++ [ ../patches/dune.patch ];
       });
+
+      pkgs = inputs.nixpkgs.legacyPackages.${final.stdenv.hostPlatform.system};
     in
     {
       inherit dune;
@@ -32,10 +34,11 @@
 
       # Pin OCaml packages that we don't want to rebuild here, because
       # ocamlPackages breaks after 3.20.2
-      inherit (inputs.nixpkgs.legacyPackages.${final.stdenv.hostPlatform.system})
-        # treefmt
-        ocamlformat
-        ;
+      inherit (pkgs) ocamlformat;
+
+      ocamlPackages = pkgs.ocamlPackages // {
+        inherit (pkgs.ocamlPackages) ocaml-lsp;
+      };
     }
   );
 }
