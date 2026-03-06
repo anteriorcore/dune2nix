@@ -3,112 +3,116 @@
 { lib, self, ... }:
 {
   flake = {
-    lib.sexp = rec {
-      parse =
-        text:
-        let
-          go =
-            token:
-            if lib.head token == "(" then
-              let
-                loop =
-                  tl:
-                  if tl == [ ] || lib.head tl == ")" then
-                    {
-                      val = [ ];
-                      rest = lib.tail tl;
-                    }
-                  else
-                    let
-                      inherit (go tl) rest val;
-                      next = loop rest;
-                    in
-                    {
-                      inherit (next) rest;
-                      val = [ val ] ++ next.val;
-                    };
-              in
-              loop (lib.tail token)
-            else
-              {
-                val = lib.head token;
-                rest = lib.tail token;
-              };
-
-          parseAll =
-            tokens:
-            if tokens == [ ] then
-              [ ]
-            else
-              let
-                inherit (go tokens) val rest;
-              in
-              [ val ] ++ parseAll rest;
-
-          # Poor man's s-expression tokenizer
-          tokens = lib.concatLists (
-            lib.filter lib.isList (
-              lib.split
-                # Capture either parens or a seq of chars that are neither
-                # parens nor whitespace.
-                "([()]|[^()[:space:]]+)"
-                text
-            )
-          );
-        in
-        parseAll tokens;
-
-      # Inspired by lib.getAttrFromPath
-      get =
-        path: nodes:
-        if (path == [ ]) then
-          null
-        else
+    lib.sexp =
+      let
+        hasKey = key: n: lib.isList n && lib.head n == key;
+      in
+      rec {
+        parse =
+          text:
           let
-            step =
-              key: next:
-              let
-                found = lib.findFirst (n: lib.isList n && lib.head n == key) null next;
-              in
-              if found == null then null else lib.tail found;
-          in
-          lib.foldl' (acc: key: if acc == null then null else step key acc) nodes path;
+            go =
+              token:
+              if lib.head token == "(" then
+                let
+                  loop =
+                    tl:
+                    if tl == [ ] || lib.head tl == ")" then
+                      {
+                        val = [ ];
+                        rest = lib.tail tl;
+                      }
+                    else
+                      let
+                        inherit (go tl) rest val;
+                        next = loop rest;
+                      in
+                      {
+                        inherit (next) rest;
+                        val = [ val ] ++ next.val;
+                      };
+                in
+                loop (lib.tail token)
+              else
+                {
+                  val = lib.head token;
+                  rest = lib.tail token;
+                };
 
-      # Get first scalar element at path
-      scalar =
-        path: nodes:
-        let
-          result = get path nodes;
-        in
-        if result == null || result == [ ] then null else lib.head result;
+            parseAll =
+              tokens:
+              if tokens == [ ] then
+                [ ]
+              else
+                let
+                  inherit (go tokens) val rest;
+                in
+                [ val ] ++ parseAll rest;
 
-      # Delete element at path
-      delete =
-        path: nodes:
-        if path == [ ] then
-          nodes
-        else
-          let
-            key = lib.head path;
-            rest = lib.tail path;
+            # Poor man's s-expression tokenizer
+            tokens = lib.concatLists (
+              lib.filter lib.isList (
+                lib.split
+                  # Capture either parens or a seq of chars that are neither
+                  # parens nor whitespace.
+                  "([()]|[^()[:space:]]+)"
+                  text
+              )
+            );
           in
-          if rest == [ ] then
-            lib.filter (n: !(lib.isList n && lib.head n == key)) nodes
+          parseAll tokens;
+
+        # Inspired by lib.getAttrFromPath
+        get =
+          path: nodes:
+          if (path == [ ]) then
+            null
           else
-            map (n: if lib.isList n && lib.head n == key then [ key ] ++ delete rest (lib.tail n) else n) nodes;
+            let
+              step =
+                key: next:
+                let
+                  found = lib.findFirst (hasKey key) null next;
+                in
+                if found == null then null else lib.tail found;
+            in
+            lib.foldl' (acc: key: if acc == null then null else step key acc) nodes path;
 
-      # Convert S-exp back to string. Slightly opinionated with separators.
-      toString = nodes: toStringSep nodes " " "\n";
+        # Get first scalar element at path
+        scalar =
+          path: nodes:
+          let
+            result = get path nodes;
+          in
+          if result == null || result == [ ] then null else lib.head result;
 
-      toStringSep =
-        nodes: elementSep: lineSep:
-        let
-          go = node: if lib.isList node then "(${lib.concatMapStringsSep elementSep go node})" else node;
-        in
-        lib.concatMapStringsSep lineSep go nodes;
+        # Delete element at path
+        delete =
+          path: nodes:
+          if path == [ ] then
+            nodes
+          else
+            let
+              key = lib.head path;
+              rest = lib.tail path;
+            in
+            if rest == [ ] then
+              lib.filter (n: !(hasKey key n)) nodes
+            else
+              map (n: if hasKey key n then [ key ] ++ delete rest (lib.tail n) else n) nodes;
 
-      parseFile = path: parse (lib.readFile path);
-    };
+        # Convert S-exp back to string. Slightly opinionated with separators.
+        toString = nodes: toStringSep nodes " " "\n";
+
+        toStringSep =
+          nodes: elementSep: lineSep:
+          let
+            go = node: if lib.isList node then "(${lib.concatMapStringsSep elementSep go node})" else node;
+          in
+          lib.concatMapStringsSep lineSep go nodes;
+
+        parseFile = path: parse (lib.readFile path);
+      };
 
     tests =
       let
