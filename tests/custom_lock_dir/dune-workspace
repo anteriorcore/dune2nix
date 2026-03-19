@@ -1,0 +1,10 @@
+(lang dune 3.21)
+
+(pkg enabled)
+
+(lock_dir
+ (path foobar))
+
+(context
+ (default
+  (lock_dir foobar)))
