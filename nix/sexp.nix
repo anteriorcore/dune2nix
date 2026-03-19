@@ -62,29 +62,45 @@
           in
           parseAll tokens;
 
-        # Inspired by lib.getAttrFromPath
-        get =
+        # Check if path exists. Inspired by lib.hasAttrByPath.
+        has =
           path: nodes:
-          if (path == [ ]) then
-            null
+          if path == [ ] then
+            true
           else
             let
-              step =
-                key: next:
-                let
-                  found = lib.findFirst (hasKey key) null next;
-                in
-                if found == null then null else lib.tail found;
+              key = lib.head path;
+              rest = lib.tail path;
+              found = lib.findFirst (hasKey key) null nodes;
             in
-            lib.foldl' (acc: key: if acc == null then null else step key acc) nodes path;
+            if found == null then false else has rest (lib.tail found);
 
-        # Get first scalar element at path
+        # Get children at path. Throws if not found. Inspired by lib.getAttrFromPath.
+        get =
+          path: nodes:
+          if path == [ ] then
+            nodes
+          else
+            let
+              key = lib.head path;
+              rest = lib.tail path;
+              found = lib.findFirst (hasKey key) null nodes;
+            in
+            if found == null then
+              throw "path not found: ${lib.concatStringsSep "." path}"
+            else
+              get rest (lib.tail found);
+
+        # Get first scalar element at path. Throws if not found.
         scalar =
           path: nodes:
           let
             result = get path nodes;
           in
-          if result == null || result == [ ] then null else lib.head result;
+          if result == [ ] then
+            throw "no value at path: ${lib.concatStringsSep "." path}"
+          else
+            lib.head result;
 
         # Transform children of node at path
         update =
@@ -115,8 +131,9 @@
       let
         inherit (self.lib.sexp)
           parse
-          scalar
+          has
           get
+          scalar
           update
           toString
           ;
@@ -228,72 +245,61 @@
             ];
           };
         };
+        has = {
+          "test: exists" = {
+            expr = has [ "a" ] (parse "(a b)");
+            expected = true;
+          };
+          "test: missing" = {
+            expr = has [ "x" ] (parse "(a b)");
+            expected = false;
+          };
+          "test: empty path" = {
+            expr = has [ ] (parse "(a b)");
+            expected = true;
+          };
+          "test: nested exists" = {
+            expr = has [ "a" "b" ] (parse "(a (b c))");
+            expected = true;
+          };
+          "test: nested missing" = {
+            expr = has [ "a" "x" ] (parse "(a (b c))");
+            expected = false;
+          };
+        };
         get = {
           "test: basic" = {
-            expr = get [ "name" ] (parse ''
-              (name foo)
-            '');
-            expected = [ "foo" ];
-          };
-          "test: non-empty path on empty object" = {
-            expr = get [ "name" ] (parse "");
-            expected = null;
-          };
-          "test: empty path on empty object" = {
-            expr = get [ ] (parse "");
-            expected = null;
-          };
-          "test: non-empty path on non-empty object" = {
-            expr = get [ ] (parse ''
-              (name foo)
-            '');
-            expected = null;
-          };
-          "test: nested" = {
-            expr = get [ "depends" "all_platforms" ] (parse ''
-              (depends
-                (all_platforms foo bar))
-            '');
+            expr = get [ "a" ] (parse "(a b c)");
             expected = [
-              "foo"
-              "bar"
+              "b"
+              "c"
             ];
           };
-          "test: missing key" = {
-            expr = get [ "missing" ] (parse ''
-              (name foo)
-            '');
-            expected = null;
+          "test: empty path returns root" = {
+            expr = get [ ] (parse "(a b)");
+            expected = [
+              [
+                "a"
+                "b"
+              ]
+            ];
           };
-          "test: partially missing path" = {
-            expr = get [ "depends" "missing" ] (parse ''
-              (depends foo bar)
-            '');
-            expected = null;
+          "test: nested" = {
+            expr = get [ "a" "b" ] (parse "(a (b c d))");
+            expected = [
+              "c"
+              "d"
+            ];
           };
         };
         scalar = {
           "test: basic" = {
-            expr = scalar [ "name" ] (parse ''
-              (name foo)
-            '');
-            expected = "foo";
+            expr = scalar [ "a" ] (parse "(a b)");
+            expected = "b";
           };
-          "test: missing" = {
-            expr = scalar [ "missing" ] (parse ''
-              (name foo)
-            '');
-            expected = null;
-          };
-          "test: empty path" = {
-            expr = scalar [ ] (parse ''
-              (name foo)
-            '');
-            expected = null;
-          };
-          "test: key exists but has no value" = {
-            expr = scalar [ "name" ] (parse "(name)");
-            expected = null;
+          "test: nested" = {
+            expr = scalar [ "a" "b" ] (parse "(a (b c))");
+            expected = "c";
           };
         };
         update = {

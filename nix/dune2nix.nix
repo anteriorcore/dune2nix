@@ -31,19 +31,19 @@
               parseFetch =
                 nodes:
                 fetchurl {
-                  url = sexp.scalar [ "fetch" "url" ] nodes;
+                  url = sexp.scalar [ "url" ] nodes;
                   # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                  hash = lib.replaceStrings [ "=" ] [ ":" ] (sexp.scalar [ "fetch" "checksum" ] nodes);
+                  hash = lib.replaceStrings [ "=" ] [ ":" ] (sexp.scalar [ "checksum" ] nodes);
                 };
 
               # Replace (fetch ...) with (copy <store-path>) in children
-              fetchToCopy =
+              patchFetchToCopy =
                 nodes:
-                if sexp.get [ "fetch" ] nodes != null then
+                if sexp.has [ "fetch" ] nodes then
                   [
                     [
                       "copy"
-                      (parseFetch nodes)
+                      (parseFetch (sexp.get [ "fetch" ] nodes))
                     ]
                   ]
                 else
@@ -51,9 +51,9 @@
             in
             parsed:
             lib.pipe parsed [
-              (sexp.update [ "source" ] fetchToCopy)
+              (sexp.update [ "source" ] patchFetchToCopy)
               (sexp.update [ "extra_sources" ] (
-                map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
+                map (entry: [ (lib.head entry) ] ++ patchFetchToCopy (lib.tail entry))
               ))
             ];
 
