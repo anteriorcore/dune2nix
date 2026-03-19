@@ -86,10 +86,8 @@
               rest = lib.tail path;
               found = lib.findFirst (hasKey key) null nodes;
             in
-            if found == null then
-              throw "path not found: ${lib.concatStringsSep "." path}"
-            else
-              get rest (lib.tail found);
+            assert lib.assertMsg (found != null) "sexp.get: key '${key}' not found";
+            get rest (lib.tail found);
 
         # Get first scalar element at path. Throws if not found.
         scalar =
@@ -97,22 +95,20 @@
           let
             result = get path nodes;
           in
-          if result == [ ] then
-            throw "no value at path: ${lib.concatStringsSep "." path}"
-          else
-            lib.head result;
+          assert lib.assertMsg (result != [ ]) "sexp.scalar: no value at path";
+          lib.head result;
 
         # Transform children of node at path
         update =
-          path: fn: nodes:
+          path: f: nodes:
           if path == [ ] then
-            fn nodes
+            f nodes
           else
             let
               key = lib.head path;
               rest = lib.tail path;
             in
-            map (n: if hasKey key n then [ key ] ++ update rest fn (lib.tail n) else n) nodes;
+            map (n: if hasKey key n then [ key ] ++ update rest f (lib.tail n) else n) nodes;
 
         # Convert S-exp back to string. Slightly opinionated with separators.
         toString = nodes: toStringSep nodes " " "\n";
