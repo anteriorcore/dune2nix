@@ -1,2 +1,0 @@
-(library
- (name custom_lock_dir))

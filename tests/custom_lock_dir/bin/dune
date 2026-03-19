@@ -1,4 +1,0 @@
-(executable
- (public_name custom_lock_dir)
- (name main)
- (libraries custom_lock_dir core))

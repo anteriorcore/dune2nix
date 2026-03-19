@@ -50,15 +50,12 @@
                 [ val ] ++ parseAll rest;
 
             # Poor man's s-expression tokenizer
-            tokens = lib.concatLists (
-              lib.filter lib.isList (
-                lib.split
-                  # Capture either parens or a seq of chars that are neither
-                  # parens nor whitespace.
-                  "([()]|[^()[:space:]]+)"
-                  text
-              )
-            );
+            tokens = lib.pipe text [
+              # Capture parens or chars that are neither parens or space
+              (lib.split "([()]|[^()[:space:]]+)")
+              (lib.filter lib.isList)
+              lib.concatLists
+            ];
           in
           parseAll tokens;
 

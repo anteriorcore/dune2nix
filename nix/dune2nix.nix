@@ -99,10 +99,15 @@
           patchPhase = ''
             runHook prePatch
 
-            ${lib.optionalString (lib.pathExists duneLock) ''
-              rm -rf dune.lock
-              cp -rL ${patchedDuneLock} dune.lock
-            ''}
+            ${
+              let
+                relativePath = lib.removePrefix "${toString src}/" (toString duneLock);
+              in
+              lib.optionalString (lib.pathExists duneLock) ''
+                rm -rf ${relativePath}
+                cp -rL ${patchedDuneLock} ${relativePath}
+              ''
+            }
 
             runHook postPatch
           '';
