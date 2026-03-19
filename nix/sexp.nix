@@ -86,20 +86,17 @@
           in
           if result == null || result == [ ] then null else lib.head result;
 
-        # Delete element at path
-        delete =
-          path: nodes:
+        # Transform children of node at path
+        update =
+          path: fn: nodes:
           if path == [ ] then
-            nodes
+            fn nodes
           else
             let
               key = lib.head path;
               rest = lib.tail path;
             in
-            if rest == [ ] then
-              lib.filter (n: !(hasKey key n)) nodes
-            else
-              map (n: if hasKey key n then [ key ] ++ delete rest (lib.tail n) else n) nodes;
+            map (n: if hasKey key n then [ key ] ++ update rest fn (lib.tail n) else n) nodes;
 
         # Convert S-exp back to string. Slightly opinionated with separators.
         toString = nodes: toStringSep nodes " " "\n";
@@ -120,7 +117,7 @@
           parse
           scalar
           get
-          delete
+          update
           toString
           ;
       in
@@ -299,66 +296,84 @@
             expected = null;
           };
         };
-        delete = {
-          "test: basic" = {
-            expr = delete [ "name" ] (parse ''
-              (name foo)
-            '');
-            expected = [ ];
-          };
-          "test: empty path" = {
-            expr = delete [ ] (parse ''
-              (name foo)
-            '');
-            expected = [
-              [
-                "name"
-                "foo"
-              ]
-            ];
-          };
-          "test: missing key" = {
-            expr = delete [ "missing" ] (parse ''
-              (name foo)
-            '');
-            expected = [
-              [
-                "name"
-                "foo"
-              ]
-            ];
-          };
-          "test: multiple entries" = {
-            expr = delete [ "name" ] (parse ''
-              (name foo)
-              (depends bar)
-            '');
-            expected = [
-              [
-                "depends"
-                "bar"
-              ]
-            ];
-          };
-          "test: nested" = {
-            expr = delete [ "depends" "all_platforms" ] (parse ''
-              (depends
-                (all_platforms foo bar))
-            '');
-            expected = [ [ "depends" ] ];
-          };
-          "test: nested preserves siblings" = {
-            expr = delete [ "depends" "all_platforms" ] (parse ''
-              (depends
-                (all_platforms foo)
-                (linux bar))
-            '');
-            expected = [
-              [
-                "depends"
+        update = {
+          "test: transform root" = {
+            expr = update [ ] (map (
+              n:
+              if lib.head n == "a" then
                 [
-                  "linux"
-                  "bar"
+                  "a"
+                  "new"
+                ]
+              else
+                n
+            )) (parse "(a old)");
+            expected = [
+              [
+                "a"
+                "new"
+              ]
+            ];
+          };
+          "test: transform children" = {
+            expr = update [ "a" ] (_: [
+              [
+                "x"
+                "y"
+              ]
+            ]) (parse "(a (b c))");
+            expected = [
+              [
+                "a"
+                [
+                  "x"
+                  "y"
+                ]
+              ]
+            ];
+          };
+          "test: missing key unchanged" = {
+            expr = update [ "missing" ] (_: [ ]) (parse "(a b)");
+            expected = [
+              [
+                "a"
+                "b"
+              ]
+            ];
+          };
+          "test: preserves siblings" = {
+            expr = update [ "b" ] (_: [ "new" ]) (parse ''
+              (a 1)
+              (b old)
+              (c 2)
+            '');
+            expected = [
+              [
+                "a"
+                "1"
+              ]
+              [
+                "b"
+                "new"
+              ]
+              [
+                "c"
+                "2"
+              ]
+            ];
+          };
+          "test: nested update" = {
+            expr = update [ "a" "b" ] (_: [ "new" ]) (parse "(a (b old) (c kept))");
+            expected = [
+              [
+                "a"
+                [
+                  "b"
+                  "new"
+                ]
+                [
+                  "c"
+                  "kept"
                 ]
               ]
             ];

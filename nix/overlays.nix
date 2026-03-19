@@ -23,6 +23,8 @@
         # Dune uses the "first" hash, i.e. prioritizes "m"d5 over
         # "s"ha256/512! The patch leverages `OpamHash::sort` to
         # prioritize "stronger" hash.
+        #
+        # https://github.com/ocaml/dune/issues/13818
         patches = (old.patches or [ ]) ++ [ ../patches/dune.patch ];
       });
 

@@ -24,10 +24,9 @@
         let
           inherit (self.lib) sexp;
 
-          # Patch "fetch" blocks (in "sources" and "extra_sources") to "copy"
-          # block pointing to Nix store path.
+          # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
+          # blocks pointing to Nix store paths.
           patchLock =
-            parsed:
             let
               parseFetch =
                 nodes:
@@ -37,60 +36,46 @@
                   hash = lib.replaceStrings [ "=" ] [ ":" ] (sexp.scalar [ "fetch" "checksum" ] nodes);
                 };
 
-              source =
-                let
-                  source = sexp.get [ "source" ] parsed;
-                in
-                if source != null then parseFetch source else null;
-
-              extraSources =
-                let
-                  extraSources = sexp.get [ "extra_sources" ] parsed;
-                in
-                lib.optionalAttrs (extraSources != null) (
-                  lib.listToAttrs (
-                    map (
-                      extraSource: lib.nameValuePair (lib.head extraSource) (parseFetch (lib.tail extraSource))
-                    ) extraSources
-                  )
-                );
-
-              mkCopySource = name: path: [
-                name
-                [
-                  "copy"
-                  path
-                ]
-              ];
-
-              base = lib.pipe parsed [
-                (sexp.delete [ "source" ])
-                (sexp.delete [ "extra_sources" ])
-              ];
-
-              sourceNode = lib.optional (source != null) (mkCopySource "source" source);
-
-              extraSourcesNode = lib.optional (extraSources != { }) (
-                [ "extra_sources" ] ++ lib.mapAttrsToList mkCopySource extraSources
-              );
+              # Replace (fetch ...) with (copy <store-path>) in children
+              fetchToCopy =
+                nodes:
+                if sexp.get [ "fetch" ] nodes != null then
+                  [
+                    [
+                      "copy"
+                      (parseFetch nodes)
+                    ]
+                  ]
+                else
+                  nodes;
             in
-            base ++ sourceNode ++ extraSourcesNode;
+            parsed:
+            lib.pipe parsed [
+              (sexp.update [ "source" ] fetchToCopy)
+              (sexp.update [ "extra_sources" ] (
+                map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
+              ))
+            ];
 
           patchedDuneLock = linkFarm "dune.lock" (
-            lib.pipe (builtins.readDir duneLock) [
-              (lib.optionalAttrs (lib.pathExists duneLock))
-              (lib.mapAttrs (name: _: sexp.parseFile (duneLock + "/${name}")))
-              (lib.mapAttrs (
-                name: parsed:
-                if name == "lock.dune" then
-                  # Notiong to patch for `lock.dune`. Afaik it is only used
-                  # during re-locking (i.e. *not*  used during building).
-                  sexp.toString parsed
-                else
-                  sexp.toString (patchLock parsed)
-              ))
-              (lib.mapAttrs writeText)
-            ]
+            lib.mapAttrs (
+              name: _:
+              let
+                text = lib.readFile (duneLock + "/${name}");
+                patched =
+                  if name == "lock.dune" then
+                    # Nothing to patch for `lock.dune`, it's only used during
+                    # relocking (i.e. not used during build).
+                    text
+                  else
+                    lib.pipe text [
+                      sexp.parse
+                      patchLock
+                      sexp.toString
+                    ];
+              in
+              writeText name patched
+            ) (builtins.readDir duneLock)
           );
 
           project = sexp.parseFile duneProject;
@@ -114,8 +99,10 @@
           patchPhase = ''
             runHook prePatch
 
-            rm -rf dune.lock
-            cp -rL ${patchedDuneLock} dune.lock
+            ${lib.optionalString (lib.pathExists duneLock) ''
+              rm -rf dune.lock
+              cp -rL ${patchedDuneLock} dune.lock
+            ''}
 
             runHook postPatch
           '';
