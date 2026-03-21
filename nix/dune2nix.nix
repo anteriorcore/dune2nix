@@ -36,8 +36,8 @@
             #
             # Devex would also be terrible: the user would have to commit the
             # Opam export file (generated via `opam export --freeze --full`),
-            # which is extremely hard to keep in sync within a team, because of
-            # Opam switch's impure nature.
+            # which is extremely hard to keep in sync across the team, because
+            # of Opam switch's impure nature.
             #
             # I will leave the door open, but I will not spend my complexity
             # budget here.
@@ -120,11 +120,11 @@
             jobsFlag = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
 
             # For some reason, `dune build` and `dune runtest` don't accept the
-            # `--context` flag, instead, you specify the build target directory
-            # (`_build/${context}`). I _hope_ this works, but I wouldn't be
-            # surprised at all even if this breaks someday. As I mentioned above
-            # context support is best-effort: it's very possible that I rip this
-            # out for a very minor issue.
+            # `--context` flag. Instead, you specify the build target directory
+            # (`_build/${context}`) -- I _hope_ this works, but I wouldn't be
+            # surprised at all even if this suddenly breaks. As I mentioned
+            # above context support is best-effort: it's very possible that I
+            # rip this out for a very minor issue.
             #
             # build:
             # https://github.com/ocaml/dune/issues/9672
@@ -190,6 +190,8 @@
       };
 
       # Directory containing a dune-project implicitly forms a Dune workspace.
+      # Consider this a "dune-project parser" - the main logic lives in
+      # mkDuneWorkspace.
       mkDuneProject = lib.extendMkDerivation {
         constructDrv = mkDuneWorkspace;
         extendDrvArgs =

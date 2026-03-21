@@ -24,11 +24,26 @@
       };
 
       # Build all packages as a check.
-      checks = lib.mapAttrs' (k: v: lib.nameValuePair "build-${k}" v) (
-        lib.packagesFromDirectoryRecursive {
-          callPackage = lib.callPackageWith (pkgs // { inherit dune2nix; });
-          directory = ../tests;
-        }
-      );
+      checks =
+        let
+          go =
+            path: attrs:
+            lib.concatMapAttrs (
+              k: v:
+              let
+                curr = path ++ [ k ];
+              in
+              if lib.isAttrs v && !lib.isDerivation v then
+                go curr v
+              else
+                { "build-${lib.concatStringsSep "/" curr}" = v; }
+            ) attrs;
+        in
+        go [ ] (
+          lib.packagesFromDirectoryRecursive {
+            callPackage = lib.callPackageWith (pkgs // { inherit dune2nix; });
+            directory = ../tests;
+          }
+        );
     };
 }
