@@ -5,6 +5,8 @@
   flake.overlays.dune = (
     final: prev:
     let
+      inherit (final.stdenv.hostPlatform) system;
+
       dune = prev.dune.overrideAttrs (old: rec {
         # Dune has a critical bug with lockfile generation[1] that was fixed in
         # 3.21.0[2] (Nixpkgs 25.11 & unstable both has dune pinned at 3.20.2).
@@ -28,7 +30,7 @@
         patches = (old.patches or [ ]) ++ [ ../patches/dune.patch ];
       });
 
-      pkgs = inputs.nixpkgs.legacyPackages.${final.stdenv.hostPlatform.system};
+      inherit (inputs.nixpkgs.legacyPackages.${system}) ocamlformat ocamlPackages;
     in
     {
       inherit dune;
@@ -36,10 +38,10 @@
 
       # Pin OCaml packages that we don't want to rebuild here, because
       # ocamlPackages breaks after 3.20.2
-      inherit (pkgs) ocamlformat;
+      inherit ocamlformat;
 
-      ocamlPackages = pkgs.ocamlPackages // {
-        inherit (pkgs.ocamlPackages) ocaml-lsp;
+      ocamlPackages = ocamlPackages // {
+        inherit (ocamlPackages) ocaml-lsp;
       };
     }
   );
