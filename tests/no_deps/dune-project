@@ -1,8 +1,8 @@
 (lang dune 3.21)
 
-(name no-deps)
+(name no_deps)
 
-(generate_opam_files true)
+(generate_opam_files false)
 
 (source
  (github username/reponame))
@@ -16,7 +16,7 @@
 (documentation https://url/to/documentation)
 
 (package
- (name no-deps)
+ (name no_deps)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends ocaml)

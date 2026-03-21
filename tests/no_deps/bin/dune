@@ -1,4 +1,4 @@
 (executable
- (public_name no-deps)
+ (public_name no_deps)
  (name main)
  (libraries no_deps))
