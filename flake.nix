@@ -24,18 +24,9 @@
     # keep-sorted end
   };
   outputs =
-    {
-      # keep-sorted start
-      devshell,
-      flake-parts,
-      nix-unit,
-      systems,
-      treefmt-nix,
-      # keep-sorted end
-      ...
-    }@inputs:
+    { flake-parts, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import systems;
+      systems = import inputs.systems;
       imports = [
         # keep-sorted start
         ./nix/devshells.nix
@@ -45,9 +36,9 @@
         ./nix/overlays.nix
         ./nix/sexp.nix
         ./nix/treefmt.nix
-        devshell.flakeModule
-        nix-unit.modules.flake.default
-        treefmt-nix.flakeModule
+        inputs.devshell.flakeModule
+        inputs.nix-unit.modules.flake.default
+        inputs.treefmt-nix.flakeModule
         # keep-sorted end
       ];
     };

@@ -33,7 +33,7 @@
                 fetchurl {
                   url = sexp.scalar [ "url" ] nodes;
                   # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                  hash = lib.replaceStrings [ "=" ] [ ":" ] (sexp.scalar [ "checksum" ] nodes);
+                  hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] nodes);
                 };
 
               # Replace (fetch ...) with (copy <store-path>) in children
