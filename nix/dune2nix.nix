@@ -114,8 +114,7 @@
         # Heavily inspied by: https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
         stdenv.mkDerivation {
           inherit src;
-          name = args.name or sexp.scalar [ "package" "name" ] project;
-          version = args.version or "0.0.0";
+          name = sexp.scalar [ "package" "name" ] project;
 
           strictDeps = true;
 
@@ -166,7 +165,8 @@
 
             runHook postCheck
           '';
-        };
+        }
+        // lib.optionalAttrs (sexp.has [ "version" ] project) { version = sexp.get [ "version" ] project; };
 
       scope = lib.makeScope newScope (_: {
         inherit mkDuneProject;

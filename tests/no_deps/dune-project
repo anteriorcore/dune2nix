@@ -3,6 +3,7 @@
 (name no_deps)
 
 (generate_opam_files false)
+(version foo)
 
 (source
  (github username/reponame))
