@@ -59,7 +59,7 @@
           lock ? src + "/${resolveLockDir duneWorkspace context}",
           enableParallelBuilding ? true,
           ...
-        }:
+        }@args:
         let
           # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
           # blocks pointing to Nix store paths.
@@ -128,7 +128,7 @@
 
           strictDeps = true;
 
-          nativeBuildInputs = [
+          nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
             dune
             # Dune wants to write in ~/.cache
             writableTmpDirAsHomeHook
@@ -176,7 +176,15 @@
             runHook postCheck
           '';
         }
-        // lib.optionalAttrs (sexp.has [ "version" ] project) { version = sexp.get [ "version" ] project; };
+        // lib.optionalAttrs (sexp.has [ "version" ] project) { version = sexp.get [ "version" ] project; }
+        // (lib.removeAttrs args [
+          "nativeBuildInputs"
+          "duneProject"
+          "duneWorkspace"
+          "context"
+          "lock"
+          "enableParallelBuilding"
+        ]);
 
       scope = lib.makeScope newScope (_: {
         inherit mkDuneProject;
