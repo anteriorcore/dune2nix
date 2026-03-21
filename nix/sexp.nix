@@ -50,14 +50,19 @@
                 [ val ] ++ parseAll rest;
 
             # Poor man's s-expression tokenizer
-            tokens = lib.pipe text [
-              # Capture parens or chars that are neither parens or space
-              (lib.split "([()]|[^()[:space:]]+)")
-              (lib.filter lib.isList)
-              lib.concatLists
-            ];
+            tokenize =
+              text:
+              lib.pipe text [
+                # Capture parens or chars that are neither parens or space
+                (lib.split "([()]|[^()[:space:]]+)")
+                (lib.filter lib.isList)
+                lib.concatLists
+              ];
           in
-          parseAll tokens;
+          lib.pipe text [
+            tokenize
+            parseAll
+          ];
 
         # Check if path exists. Inspired by lib.hasAttrByPath.
         has =
