@@ -100,7 +100,7 @@
           assert lib.assertMsg (result != [ ]) "sexp.scalar: no value at path";
           lib.head result;
 
-        # Transform children of node at path
+        # Transform children of node at path. Inspired by lib.updateManyAttrsByPath.
         update =
           path: f: nodes:
           if path == [ ] then
