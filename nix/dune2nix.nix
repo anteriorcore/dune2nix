@@ -50,13 +50,8 @@
             # context.${name}.lock_dir stanza.
             lockDir =
               let
-                ctx = lib.pipe duneWorkspace [
-                  sexp.parseFile
-                  (sexp.get [
-                    "context"
-                    context
-                  ])
-                ];
+                parsed = sexp.parseFile duneWorkspace;
+                ctx = lib.optionals (sexp.has [ "context" ] parsed) (sexp.get [ "context" context ] parsed);
               in
               if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" ] ctx) then
                 sexp.scalar [ "lock_dir" ] ctx
@@ -163,7 +158,6 @@
 
             buildPhase = ''
               runHook preBuild
-
 
               dune build ${target} ${jobsFlag}
 
