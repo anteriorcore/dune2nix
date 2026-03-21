@@ -43,8 +43,7 @@
           # workspace root.
           duneWorkspace ? src + "/dune-workspace",
 
-          # Workspace context to build in, although I'm not sure if opam context
-          # works or if it should event be supported.
+          # Context to build in. # TODO: Support Opam switch context.
           # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
           context ? "default",
           lock ? src + "/${resolveLockDir duneWorkspace context}",
@@ -52,8 +51,6 @@
           ...
         }@args:
         let
-          lockDir = resolveLockDir duneWorkspace context;
-
           # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
           # blocks pointing to Nix store paths.
           patchLock =
@@ -86,6 +83,8 @@
                 map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
               ))
             ];
+
+          lockDir = resolveLockDir duneWorkspace context;
 
           patchedLock = linkFarm lockDir (
             lib.mapAttrs (
@@ -136,24 +135,34 @@
 
             runHook postPatch
           '';
+
+          # For some reason, `dune build` and `dune runtest` don't accept the
+          # `--context` flag, instead, you specify the build target directory
+          # (`_build/${context}`) - I _hope_ this works, but I wouldn't be
+          # surprised at all even if this breaks.
+
+          # https://github.com/ocaml/dune/issues/9672
           buildPhase = ''
             runHook preBuild
 
-            dune build ${jobsFlag}
+            dune build _build/${context}/ ${jobsFlag}
 
             runHook postBuild
           '';
+
           installPhase = ''
             runHook preInstall
 
-            dune install --prefix $out
+            dune install --context ${context} --prefix $out
 
             runHook postInstall
           '';
+
+          # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
           checkPhase = ''
             runHook preCheck
 
-            dune runtest ${jobsFlag}
+            dune runtest _build/${context}/ ${jobsFlag}
 
             runHook postCheck
           '';
