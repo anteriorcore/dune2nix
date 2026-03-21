@@ -284,6 +284,14 @@
               "d"
             ];
           };
+          "test: throws on missing key" = {
+            expr = get [ "missing" ] (parse "(a b)");
+            expectedError.type = "ThrownError";
+          };
+          "test: throws on missing nested key" = {
+            expr = get [ "a" "missing" ] (parse "(a (b c))");
+            expectedError.type = "ThrownError";
+          };
         };
         scalar = {
           "test: basic" = {
@@ -293,6 +301,10 @@
           "test: nested" = {
             expr = scalar [ "a" "b" ] (parse "(a (b c))");
             expected = "c";
+          };
+          "test: throws on empty value" = {
+            expr = scalar [ "a" ] (parse "(a)");
+            expectedError.type = "ThrownError";
           };
         };
         update = {
