@@ -13,17 +13,31 @@
       overrideScope ? _: _: { },
     }:
     let
+      inherit (self.lib) sexp;
+
       mkDuneProject =
         {
           src,
           duneProject ? src + "/dune-project",
-          duneLock ? src + "/dune.lock",
+          duneWorkspace ? src + "/dune-workspace",
+
+          # TODO: support context
+          duneLock ?
+            let
+              project = sexp.parseFile duneWorkspace;
+            in
+            src
+            + "/${
+              if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" "path" ] project) then
+                sexp.scalar [ "lock_dir" "path" ] project
+              else
+                "dune.lock"
+            }",
+
           enableParallelBuilding ? true,
           ...
         }@args:
         let
-          inherit (self.lib) sexp;
-
           # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
           # blocks pointing to Nix store paths.
           patchLock =

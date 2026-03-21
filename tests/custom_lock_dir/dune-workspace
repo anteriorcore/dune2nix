@@ -1,0 +1,12 @@
+(lang dune 3.21)
+
+(pkg enabled)
+
+(lock_dir
+  (path my_dune.lock))
+
+; Must be explicitly defined for each context
+; https://github.com/ocaml/dune/issues/12717
+(context
+ (default
+  (lock_dir my_dune.lock)))
