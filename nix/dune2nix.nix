@@ -20,25 +20,6 @@
 
         extendDrvArgs =
           finalAttrs:
-          let
-            # Default is "dune.lock", and can be customized via dune-workspace's
-            # context.${name}.lock_dir stanza.
-            resolveLockDir =
-              duneWorkspace: context:
-              let
-                ctx = lib.pipe duneWorkspace [
-                  sexp.parseFile
-                  (sexp.get [
-                    "context"
-                    context
-                  ])
-                ];
-              in
-              if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" ] ctx) then
-                sexp.scalar [ "lock_dir" ] ctx
-              else
-                "dune.lock";
-          in
           {
             src,
             duneProject ? src + "/dune-project",
@@ -46,10 +27,6 @@
             # Any directory containing a dune-project file implicitly acts as a
             # workspace root.
             duneWorkspace ? src + "/dune-workspace",
-
-            # Default is "dune.lock", and can be customized via dune-workspace's
-            # context.${name}.lock_dir stanza.
-            duneLock ? src + "/${resolveLockDir duneWorkspace context}",
 
             # The build context. Dune supports "default" and Opam switch context,
             # but I'm not convinced that we should support Opam switch context:
@@ -69,6 +46,25 @@
             ...
           }@args:
           let
+            # Default is "dune.lock", and can be customized via dune-workspace's
+            # context.${name}.lock_dir stanza.
+            lockDir =
+              let
+                ctx = lib.pipe duneWorkspace [
+                  sexp.parseFile
+                  (sexp.get [
+                    "context"
+                    context
+                  ])
+                ];
+              in
+              if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" ] ctx) then
+                sexp.scalar [ "lock_dir" ] ctx
+              else
+                "dune.lock";
+
+            duneLock = args.duneLock or (src + "/${lockDir}");
+
             # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
             # blocks pointing to Nix store paths.
             patchLock =
@@ -101,8 +97,6 @@
                   map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
                 ))
               ];
-
-            lockDir = resolveLockDir duneWorkspace context;
 
             patchedLock = linkFarm lockDir (
               lib.mapAttrs (
