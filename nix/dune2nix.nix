@@ -60,6 +60,10 @@
           context ? "default",
 
           enableParallelBuilding ? true,
+
+          # Attrs that need special handling must be named here so they're
+          # excluded from passthru to stdenv.mkDerivation.
+          nativeBuildInputs ? [ ],
           ...
         }@args:
         let
@@ -144,7 +148,7 @@
 
           strictDeps = true;
 
-          nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
+          nativeBuildInputs = nativeBuildInputs ++ [
             dune
             # Dune wants to write in ~/.cache
             writableTmpDirAsHomeHook
@@ -186,14 +190,11 @@
           '';
         }
         // lib.optionalAttrs (sexp.has [ "version" ] project) { version = sexp.get [ "version" ] project; }
-        // (lib.removeAttrs args [
-          "nativeBuildInputs"
-          "duneProject"
-          "duneWorkspace"
-          "duneLock"
-          "context"
-          "enableParallelBuilding"
-        ]);
+        // lib.removeAttrs args (lib.attrNames (lib.functionArgs mkDuneProject));
+
+      scope = lib.makeScope newScope (_: {
+        inherit mkDuneProject;
+      });
     in
-    lib.makeScope newScope (_: { inherit mkDuneProject; }).overrideScope overrideScope;
+    scope.overrideScope overrideScope;
 }
