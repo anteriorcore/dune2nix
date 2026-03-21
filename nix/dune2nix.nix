@@ -138,16 +138,18 @@
             target = "_build/${context}";
 
             # Small utility for writing phases
-            mkPhase =
-              phase: body:
+            mkPhases = lib.mapAttrs' (
+              k: v:
               let
-                capitalized = lib.toSentenceCase phase;
+                capitalized = lib.toSentenceCase k;
               in
-              ''
+              lib.nameValuePair "${k}Phase" ''
                 runHook pre${capitalized}
-                ${body}
+                ${v}
                 runHook post${capitalized}
-              '';
+              ''
+            );
+
           in
           # Heavily inspired by:
           # https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
@@ -161,23 +163,19 @@
               # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
             ];
-
-            patchPhase = mkPhase "patch" (
-              lib.optionalString (lib.pathExists duneLock) ''
-                rm -rf ${lockDir}
-                cp -rL ${patchedLock} ${lockDir}
-              ''
-            );
-
-            buildPhase = mkPhase "build" ''
+          }
+          // mkPhases {
+            patch = lib.optionalString (lib.pathExists duneLock) ''
+              rm -rf ${lockDir}
+              cp -rL ${patchedLock} ${lockDir}
+            '';
+            build = ''
               dune build ${target} ${jobsFlag}
             '';
-
-            installPhase = mkPhase "install" ''
+            install = ''
               dune install --context ${context} --prefix $out
             '';
-
-            checkPhase = mkPhase "check" ''
+            check = ''
               dune runtest ${target} ${jobsFlag}
             '';
           }
