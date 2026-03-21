@@ -136,20 +136,6 @@
             # runtest:
             # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
             target = "_build/${context}";
-
-            # Small utility for writing phases
-            mkPhases = lib.mapAttrs' (
-              k: v:
-              let
-                capitalized = lib.toSentenceCase k;
-              in
-              lib.nameValuePair "${k}Phase" ''
-                runHook pre${capitalized}
-                ${v}
-                runHook post${capitalized}
-              ''
-            );
-
           in
           # Heavily inspired by:
           # https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
@@ -163,20 +149,41 @@
               # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
             ];
-          }
-          // mkPhases {
-            patch = lib.optionalString (lib.pathExists duneLock) ''
-              rm -rf ${lockDir}
-              cp -rL ${patchedLock} ${lockDir}
+
+            patchPhase = ''
+              runHook prePatch
+
+              ${lib.optionalString (lib.pathExists duneLock) ''
+                rm -rf ${lockDir}
+                cp -rL ${patchedLock} ${lockDir}
+              ''}
+
+              runHook postPatch
             '';
-            build = ''
+
+            buildPhase = ''
+              runHook preBuild
+
+
               dune build ${target} ${jobsFlag}
+
+              runHook postBuild
             '';
-            install = ''
+
+            installPhase = ''
+              runHook preInstall
+
               dune install --context ${context} --prefix $out
+
+              runHook postInstall
             '';
-            check = ''
+
+            checkPhase = ''
+              runHook preCheck
+
               dune runtest ${target} ${jobsFlag}
+
+              runHook postCheck
             '';
           }
           // lib.optionalAttrs (sexp.has [ "version" ] project) {
