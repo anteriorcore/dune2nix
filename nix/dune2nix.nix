@@ -17,7 +17,6 @@
 
       mkDuneWorkspace = lib.extendMkDerivation {
         constructDrv = stdenv.mkDerivation;
-
         extendDrvArgs =
           finalAttrs:
           {
@@ -45,6 +44,10 @@
             # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
             context ? "default",
 
+            # Conventional flag used by many builders in nixpkgs including Dune.
+            # In Dune, it's used to set `-j` (jobs) flag.
+            #
+            # Inspired by: `pkgs.buildDunePackage`
             enableParallelBuilding ? true,
             ...
           }@args:
@@ -117,8 +120,6 @@
               ) (builtins.readDir duneLock)
             );
 
-            jobsFlag = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
-
             # For some reason, `dune build` and `dune runtest` don't accept the
             # `--context` flag. Instead, you specify the build target directory
             # (`_build/${context}`) -- I _hope_ this works, but I wouldn't be
@@ -132,9 +133,10 @@
             # runtest:
             # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
             target = "_build/${context}";
+
+            # Flags used for `dune build` and `runtest`.
+            flags = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
           in
-          # Heavily inspired by:
-          # https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
           {
             strictDeps = true;
 
@@ -158,7 +160,7 @@
             buildPhase = ''
               runHook preBuild
 
-              dune build ${target} ${jobsFlag}
+              dune build ${target} ${flags}
 
               runHook postBuild
             '';
@@ -174,7 +176,7 @@
             checkPhase = ''
               runHook preCheck
 
-              dune runtest ${target} ${jobsFlag}
+              dune runtest ${target} ${flags}
 
               runHook postCheck
             '';
