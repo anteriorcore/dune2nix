@@ -18,14 +18,6 @@
       mkDuneProject = lib.extendMkDerivation {
         constructDrv = stdenv.mkDerivation;
 
-        excludeDrvArgNames = [
-          "duneProject"
-          "duneWorkspace"
-          "duneLock"
-          "context"
-          "enableParallelBuilding"
-        ];
-
         extendDrvArgs =
           finalAttrs:
           let
@@ -154,7 +146,6 @@
           # Heavily inspired by:
           # https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
           {
-            inherit src;
             name = sexp.scalar [ "package" "name" ] project;
 
             strictDeps = true;
@@ -203,6 +194,15 @@
           // lib.optionalAttrs (sexp.has [ "version" ] project) {
             version = sexp.scalar [ "version" ] project;
           };
+
+        # Hate this hardcoded list but it's a very standard practice in nixpkgs.
+        excludeDrvArgNames = [
+          "duneProject"
+          "duneWorkspace"
+          "duneLock"
+          "context"
+          "enableParallelBuilding"
+        ];
       };
 
       scope = lib.makeScope newScope (_: {
