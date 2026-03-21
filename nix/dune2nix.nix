@@ -17,8 +17,6 @@
 
       mkDuneProject =
         let
-          # Default is "lock.dune", and can be customized via dune-workspace's
-          # context.${name}.lock_dir stanza.
           resolveLockDir =
             duneWorkspace: context:
             let
@@ -43,6 +41,10 @@
           # workspace root.
           duneWorkspace ? src + "/dune-workspace",
 
+          # Default is "lock.dune", and can be customized via dune-workspace's
+          # context.${name}.lock_dir stanza.
+          duneLock ? src + "/${resolveLockDir duneWorkspace context}",
+
           # The build context. Dune supports "default" and Opam switch context,
           # but I'm not convinced that we should support Opam switch context:
           # if you're using Opam switch (not managing package via Dune), you
@@ -56,7 +58,7 @@
           #
           # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
           context ? "default",
-          lock ? src + "/${resolveLockDir duneWorkspace context}",
+
           enableParallelBuilding ? true,
           ...
         }@args:
@@ -100,7 +102,7 @@
             lib.mapAttrs (
               name: _:
               let
-                text = lib.readFile (lock + "/${name}");
+                text = lib.readFile (duneLock + "/${name}");
                 patched =
                   if name == "lock.dune" then
                     # Nothing to patch for `lock.dune`, it's only used during
@@ -114,12 +116,26 @@
                     ];
               in
               writeText name patched
-            ) (builtins.readDir lock)
+            ) (builtins.readDir duneLock)
           );
 
           project = sexp.parseFile duneProject;
 
           jobsFlag = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
+
+          # For some reason, `dune build` and `dune runtest` don't accept the
+          # `--context` flag, instead, you specify the build target directory
+          # (`_build/${context}`) - I _hope_ this works, but I wouldn't be
+          # surprised at all even if this breaks. As I said above, context
+          # support is best-effort: it's very possible that I rip this out a
+          # very minor issue.
+          #
+          # build:
+          # https://github.com/ocaml/dune/issues/9672
+          #
+          # runtest:
+          # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
+          target = "_build/${context}";
         in
         # Heavily inspied by: https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
         stdenv.mkDerivation {
@@ -137,7 +153,7 @@
           patchPhase = ''
             runHook prePatch
 
-            ${lib.optionalString (lib.pathExists lock) ''
+            ${lib.optionalString (lib.pathExists duneLock) ''
               rm -rf ${lockDir}
               cp -rL ${patchedLock} ${lockDir}
             ''}
@@ -145,16 +161,10 @@
             runHook postPatch
           '';
 
-          # For some reason, `dune build` and `dune runtest` don't accept the
-          # `--context` flag, instead, you specify the build target directory
-          # (`_build/${context}`) - I _hope_ this works, but I wouldn't be
-          # surprised at all even if this breaks.
-
-          # https://github.com/ocaml/dune/issues/9672
           buildPhase = ''
             runHook preBuild
 
-            dune build _build/${context}/ ${jobsFlag}
+            dune build ${target} ${jobsFlag}
 
             runHook postBuild
           '';
@@ -167,11 +177,10 @@
             runHook postInstall
           '';
 
-          # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
           checkPhase = ''
             runHook preCheck
 
-            dune runtest _build/${context}/ ${jobsFlag}
+            dune runtest ${target} ${jobsFlag}
 
             runHook postCheck
           '';
@@ -181,14 +190,10 @@
           "nativeBuildInputs"
           "duneProject"
           "duneWorkspace"
+          "duneLock"
           "context"
-          "lock"
           "enableParallelBuilding"
         ]);
-
-      scope = lib.makeScope newScope (_: {
-        inherit mkDuneProject;
-      });
     in
-    scope.overrideScope overrideScope;
+    lib.makeScope newScope (_: { inherit mkDuneProject; }).overrideScope overrideScope;
 }
