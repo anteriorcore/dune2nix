@@ -16,28 +16,44 @@
       inherit (self.lib) sexp;
 
       mkDuneProject =
+        let
+          # Default is "lock.dune", and can be customized via dune-workspace's
+          # context.${name}.lock_dir stanza.
+          resolveLockDir =
+            duneWorkspace: context:
+            let
+              ctx = lib.pipe duneWorkspace [
+                sexp.parseFile
+                (sexp.get [
+                  "context"
+                  context
+                ])
+              ];
+            in
+            if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" ] ctx) then
+              sexp.scalar [ "lock_dir" ] ctx
+            else
+              "dune.lock";
+        in
         {
           src,
           duneProject ? src + "/dune-project",
+
+          # Any directory containing a dune-project file implicitly acts as a
+          # workspace root.
           duneWorkspace ? src + "/dune-workspace",
 
-          # TODO: support context
-          duneLock ?
-            let
-              project = sexp.parseFile duneWorkspace;
-            in
-            src
-            + "/${
-              if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" "path" ] project) then
-                sexp.scalar [ "lock_dir" "path" ] project
-              else
-                "dune.lock"
-            }",
-
+          # Workspace context to build in, although I'm not sure if opam context
+          # works or if it should event be supported.
+          # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
+          context ? "default",
+          lock ? src + "/${resolveLockDir duneWorkspace context}",
           enableParallelBuilding ? true,
           ...
         }@args:
         let
+          lockDir = resolveLockDir duneWorkspace context;
+
           # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
           # blocks pointing to Nix store paths.
           patchLock =
@@ -51,7 +67,7 @@
                 };
 
               # Replace (fetch ...) with (copy <store-path>) in children
-              patchFetchToCopy =
+              fetchToCopy =
                 nodes:
                 if sexp.has [ "fetch" ] nodes then
                   [
@@ -65,17 +81,17 @@
             in
             parsed:
             lib.pipe parsed [
-              (sexp.update [ "source" ] patchFetchToCopy)
+              (sexp.update [ "source" ] fetchToCopy)
               (sexp.update [ "extra_sources" ] (
-                map (entry: [ (lib.head entry) ] ++ patchFetchToCopy (lib.tail entry))
+                map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
               ))
             ];
 
-          patchedDuneLock = linkFarm "dune.lock" (
+          patchedLock = linkFarm lockDir (
             lib.mapAttrs (
               name: _:
               let
-                text = lib.readFile (duneLock + "/${name}");
+                text = lib.readFile (lock + "/${name}");
                 patched =
                   if name == "lock.dune" then
                     # Nothing to patch for `lock.dune`, it's only used during
@@ -89,7 +105,7 @@
                     ];
               in
               writeText name patched
-            ) (builtins.readDir duneLock)
+            ) (builtins.readDir lock)
           );
 
           project = sexp.parseFile duneProject;
@@ -99,7 +115,7 @@
         # Heavily inspied by: https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
         stdenv.mkDerivation {
           inherit src;
-          pname = args.name or sexp.scalar [ "package" "name" ] project;
+          name = args.name or sexp.scalar [ "package" "name" ] project;
           version = args.version or "0.0.0";
 
           strictDeps = true;
@@ -113,15 +129,10 @@
           patchPhase = ''
             runHook prePatch
 
-            ${
-              let
-                relativePath = lib.removePrefix "${toString src}/" (toString duneLock);
-              in
-              lib.optionalString (lib.pathExists duneLock) ''
-                rm -rf ${relativePath}
-                cp -rL ${patchedDuneLock} ${relativePath}
-              ''
-            }
+            ${lib.optionalString (lib.pathExists lock) ''
+              rm -rf ${lockDir}
+              cp -rL ${patchedLock} ${lockDir}
+            ''}
 
             runHook postPatch
           '';
