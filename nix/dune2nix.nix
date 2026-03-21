@@ -43,13 +43,23 @@
           # workspace root.
           duneWorkspace ? src + "/dune-workspace",
 
-          # Context to build in. # TODO: Support Opam switch context.
+          # The build context. Dune supports "default" and Opam switch context,
+          # but I'm not convinced that we should support Opam switch context:
+          # if you're using Opam switch (not managing package via Dune), you
+          # probably don't want to use this library anyways.
+          #
+          # One situation where this might not be true is if someone wants to
+          # manage Dune via Opam, and rest of the packages via Dune. But that's
+          # also unlikely because the user of this library would use Nix (via
+          # devshell) to manage Dune -- so I will leave the door open but will
+          # not spend my complexity budget here.
+          #
           # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
           context ? "default",
           lock ? src + "/${resolveLockDir duneWorkspace context}",
           enableParallelBuilding ? true,
           ...
-        }@args:
+        }:
         let
           # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
           # blocks pointing to Nix store paths.
