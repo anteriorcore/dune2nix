@@ -77,7 +77,7 @@
                     hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] nodes);
                   };
 
-                # Replace (fetch ...) with (copy <store-path>) in children
+                # Replace (fetch ...) with (copy <store-path>)
                 fetchToCopy =
                   nodes:
                   if sexp.has [ "fetch" ] nodes then
@@ -136,6 +136,18 @@
             # runtest:
             # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
             target = "_build/${context}";
+
+            # Small utility for writing phases
+            mkPhase =
+              phase: body:
+              let
+                capitalized = lib.toSentenceCase phase;
+              in
+              ''
+                runHook pre${capitalized}
+                ${body}
+                runHook post${capitalized}
+              '';
           in
           # Heavily inspired by:
           # https://github.com/NixOS/nixpkgs/blob/27894d0586cf031cd5b3b345b6f9676c99ca6bac/pkgs/build-support/ocaml/dune.nix
@@ -150,39 +162,23 @@
               writableTmpDirAsHomeHook
             ];
 
-            patchPhase = ''
-              runHook prePatch
-
-              ${lib.optionalString (lib.pathExists duneLock) ''
+            patchPhase = mkPhase "patch" (
+              lib.optionalString (lib.pathExists duneLock) ''
                 rm -rf ${lockDir}
                 cp -rL ${patchedLock} ${lockDir}
-              ''}
+              ''
+            );
 
-              runHook postPatch
-            '';
-
-            buildPhase = ''
-              runHook preBuild
-
+            buildPhase = mkPhase "build" ''
               dune build ${target} ${jobsFlag}
-
-              runHook postBuild
             '';
 
-            installPhase = ''
-              runHook preInstall
-
+            installPhase = mkPhase "install" ''
               dune install --context ${context} --prefix $out
-
-              runHook postInstall
             '';
 
-            checkPhase = ''
-              runHook preCheck
-
+            checkPhase = mkPhase "check" ''
               dune runtest ${target} ${jobsFlag}
-
-              runHook postCheck
             '';
           }
           // lib.optionalAttrs (sexp.has [ "version" ] project) {
