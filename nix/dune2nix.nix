@@ -126,9 +126,9 @@
             # For some reason, `dune build` and `dune runtest` don't accept the
             # `--context` flag, instead, you specify the build target directory
             # (`_build/${context}`) - I _hope_ this works, but I wouldn't be
-            # surprised at all even if this breaks. As I said above, context
-            # support is best-effort: it's very possible that I rip this out on
-            # a very minor issue.
+            # surprised at all even if this breaks someday. As I mentioned above
+            # context support is best-effort: it's very possible that I rip this
+            # out for a very minor issue.
             #
             # build:
             # https://github.com/ocaml/dune/issues/9672
