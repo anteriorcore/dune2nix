@@ -1,0 +1,14 @@
+(version dev)
+
+(build
+ (all_platforms ((dune))))
+
+(depends
+ (all_platforms (ocaml)))
+
+(source
+ (fetch
+  (url
+   file:///Users/me/code/github.com/anteriorcore/dune2nix/tests/local_deps/bar)))
+
+(dev)
