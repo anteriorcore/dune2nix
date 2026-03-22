@@ -46,8 +46,6 @@
 
             # Conventional flag used by many builders in nixpkgs including Dune.
             # In Dune, it's used to set `-j` (jobs) flag.
-            #
-            # Inspired by: `pkgs.buildDunePackage`
             enableParallelBuilding ? true,
             ...
           }@args:
@@ -91,8 +89,7 @@
                   else
                     nodes;
               in
-              parsed:
-              lib.pipe parsed [
+              (lib.flip lib.pipe) [
                 (sexp.update [ "source" ] fetchToCopy)
                 (sexp.update [ "extra_sources" ] (
                   map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
