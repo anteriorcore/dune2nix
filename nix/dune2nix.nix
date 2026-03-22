@@ -15,6 +15,8 @@
     let
       inherit (self.lib) sexp;
 
+      # Create a non-executable derivation that builds all projects in the
+      # workspace: think of this as running `dune build` in the workspace root.
       mkDuneWorkspace = lib.extendMkDerivation {
         constructDrv = stdenv.mkDerivation;
         extendDrvArgs =
@@ -177,6 +179,31 @@
 
               runHook postCheck
             '';
+
+            passthru.duneProjects = lib.pipe src [
+              lib.filesystem.listFilesRecursive
+              (lib.filter (p: builtins.baseNameOf p == "dune-project"))
+              (map (
+                duneProject:
+                let
+                  project = sexp.parseFile duneProject;
+                  dir = builtins.dirOf duneProject;
+                in
+                lib.nameValuePair (sexp.scalar [ "package" "name" ] project) (mkDuneProject {
+                  src = lib.fileset.toSource {
+                    root = src;
+                    fileset = lib.fileset.unions [
+                      duneLock
+                      duneWorkspace
+                      dir
+                      (lib.fileset.fileFilter (file: file.name == "dune-project" || file.name == "dune") src)
+                    ];
+                  };
+                  inherit duneProject duneLock;
+                })
+              ))
+              lib.listToAttrs
+            ];
           };
 
         excludeDrvArgNames = [
