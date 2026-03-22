@@ -15,6 +15,8 @@
     let
       inherit (self.lib) sexp;
 
+      # Create a non-executable derivation that builds all projects in the
+      # workspace: think of this as running `dune build` in the workspace root.
       mkDuneWorkspace = lib.extendMkDerivation {
         constructDrv = stdenv.mkDerivation;
         extendDrvArgs =
@@ -68,22 +70,22 @@
             # blocks pointing to Nix store paths.
             patchLock =
               let
-                parseFetch =
-                  nodes:
-                  fetchurl {
-                    url = sexp.scalar [ "url" ] nodes;
-                    # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                    hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] nodes);
-                  };
-
                 # Replace (fetch ...) with (copy <store-path>)
                 fetchToCopy =
                   nodes:
                   if sexp.has [ "fetch" ] nodes then
+                    let
+                      node = sexp.get [ "fetch" ] nodes;
+                      drv = fetchurl {
+                        url = sexp.scalar [ "url" ] node;
+                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
+                        hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] node);
+                      };
+                    in
                     [
                       [
                         "copy"
-                        (parseFetch (sexp.get [ "fetch" ] nodes))
+                        drv
                       ]
                     ]
                   else
