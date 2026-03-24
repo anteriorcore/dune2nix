@@ -5,6 +5,10 @@
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    dune = {
+      url = "github:ocaml/dune";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";

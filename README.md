@@ -10,9 +10,9 @@ no hardcoded hash.
 
 ## Overlay
 
-The version of Dune included in the current Nixpkgs release (25.11) has a
-critical bug related to lockfile handling. `dune2nix` provides an optional
-overlay that applies a minimal patch to fix this. For more details, see
+The version of Dune included in the current Nixpkgs release (25.11) has critical
+bugs related to lockfile handling. `dune2nix` provides an optional overlay that
+uses the latest build that address these issues. For more details, see
 [`./nix/overlays.nix`](./nix/overlays.nix).
 
 ## Demo

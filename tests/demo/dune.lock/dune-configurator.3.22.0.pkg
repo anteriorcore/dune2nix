@@ -1,0 +1,19 @@
+(version 3.22.0)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs} @install))))))
+
+(depends
+ (all_platforms
+  (dune ocaml base-unix csexp)))
+
+(source
+ (fetch
+  (url
+   https://github.com/ocaml/dune/releases/download/3.22.0/dune-3.22.0.tbz)
+  (checksum
+   sha512=c99102070a9c90b29ca4cac68bd2444c086dd0ac5b63515d561087509beff719c4c534ee844f25ce391d1c08080f9e78b7dd32ed14057c6b9cc7886f60337f3b)))
