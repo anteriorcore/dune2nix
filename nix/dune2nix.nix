@@ -15,8 +15,34 @@
     let
       inherit (self.lib) sexp;
 
-      # Create a non-executable derivation that builds all projects in the
-      # workspace: think of this as running `dune build` in the workspace root.
+      # Creates a non-executable derivation that builds all projects in a
+      # workspace. Think of this as running `dune build` in the workspace root.
+      #
+      # This is the core of the library and used internally by `mkDuneProject`.
+      # Although it's public, I advise against using it directly, as it makes
+      # granular source control impossible.
+      #
+      # `dune.lock/lock.dune` files contain a `dependency_hash`, which is
+      # computed from all the `dune-project` files in the workspace. If there
+      # is a hash mismatch during build, Dune will error out. This prevents
+      # editing `dune-project` without updating the lockfiles. So in order to
+      # build a _single_ project in a workspace, you need a source set of 1.
+      # the project you're trying to build, and 2. all the `dune-project` files
+      # in the workspace. Although this is a little heinous, it's still
+      # possible - the problem is that Dune errors again because now there are
+      # "empty" `dune-project`s - i.e. projects without user-defined stanzas in
+      # `dune` files. So now we add `dune` files and guess what - Dune yet
+      # again errors because the `dune` files are invalid (they don't have the
+      # associated sources)! Dune does provide an `(allow_empty)` stanza that
+      # can be added to `dune-project` to suppress empty project errors, but
+      # this doesn't work either because it would change the `dependency_hash`.
+      # The conclusion is that to build a single project in a workspace, you
+      # need the entire workspace, which means a single line change in one
+      # project causes a full rebuild of the workspace.
+      #
+      # Here's a tip for people who absolutely want to use workspaces: don't!
+      #
+      # https://dune.readthedocs.io/en/stable/explanation/scopes.html
       mkDuneWorkspace = lib.extendMkDerivation {
         constructDrv = stdenv.mkDerivation;
         extendDrvArgs =
@@ -215,9 +241,9 @@
         ];
       };
 
-      # Directory containing a dune-project implicitly forms a Dune workspace.
-      # Consider this a "dune-project parser" - the main logic lives in
-      # mkDuneWorkspace.
+      # A directory with a dune-project file implicitly forms a Dune workspace,
+      # so this is a thin wrapper around mkDuneWorkspace that parses the project
+      # file.
       mkDuneProject = lib.extendMkDerivation {
         constructDrv = mkDuneWorkspace;
         extendDrvArgs =
