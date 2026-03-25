@@ -21,8 +21,4 @@
  (tags
   ("add topics" "to describe" your project)))
 
-(pin
-  (url file://../bar)
-  (package (name bar)))
-
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
