@@ -216,9 +216,9 @@
         ];
       };
 
-      # Directory containing a dune-project implicitly forms a Dune workspace.
-      # Consider this a "dune-project parser" - the main logic lives in
-      # mkDuneWorkspace.
+      # A directory with a `dune-project` file implicitly forms a Dune
+      # workspace,  so this is a thin wrapper around mkDuneWorkspace that
+      # parses the `dune-project` file.
       mkDuneProject = lib.extendMkDerivation {
         constructDrv = mkDuneWorkspace;
         extendDrvArgs =
