@@ -75,6 +75,9 @@
             # Conventional flag used by many builders in nixpkgs including Dune.
             # In Dune, it's used to set `-j` (jobs) flag.
             enableParallelBuilding ? true,
+
+            # NOMERGE
+            __dangerouslyEnableIncrementalBuild ? false,
             ...
           }@args:
           let
@@ -161,6 +164,58 @@
 
             # Flags used for `dune build` and `runtest`.
             flags = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
+
+            duneDeps = lib.mapAttrs' (
+              name: _:
+              let
+                parsed = sexp.parseFile (duneLock + "/${name}");
+                depList = lib.optionals (sexp.has [ "depends" ] parsed) (
+                  lib.filter (x: x != "dune") (lib.head (sexp.get [ "depends" "all_platforms" ] parsed))
+                );
+
+                packageName = lib.head (lib.splitString "." name);
+
+                # NOMERGE wtf
+                packageTarget =
+                  if (packageName == "ocaml-compiler") then
+                    "_build/default/dune.lock/ocaml-compiler.5.4.1.pkg"
+                  else
+                    "_build/_private/${context}/.pkg/$(dune pkg print-digest ${packageName})";
+
+              in
+              lib.nameValuePair packageName (
+                stdenv.mkDerivation {
+                  name = packageName;
+                  nativeBuildInputs = [
+                    dune
+                    writableTmpDirAsHomeHook
+                  ]
+                  ++ (lib.attrVals depList duneDeps);
+
+                  src = lib.fileset.toSource {
+                    root = src;
+                    fileset = lib.fileset.unions [
+                      # NOMERGE i think we need all the dune-projects
+                      (src + "/dune-project")
+                      # NOMERGE only select the ones we need
+                      duneLock
+                    ];
+                  };
+                  patchPhase = ''
+                    rm -rf ${lockDir}
+                    cp -rL ${patchedLock} ${lockDir}
+                  '';
+                  buildPhase = ''
+                    dune build ${packageTarget}
+                  '';
+                  installPhase = ''
+                    dune install --context ${packageTarget} --prefix $out
+                  '';
+                }
+              )
+            ) (
+              # NOMERGE
+              lib.filterAttrs (k: _: k != "lock.dune") (builtins.readDir duneLock));
           in
           {
             strictDeps = true;
@@ -169,14 +224,21 @@
               dune
               # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
+
+              (lib.attrValues duneDeps)
             ];
+
+            passthru = { inherit duneDeps; };
 
             patchPhase = ''
               runHook prePatch
 
               ${lib.optionalString (lib.pathExists duneLock) ''
                 rm -rf ${lockDir}
-                cp -rL ${patchedLock} ${lockDir}
+
+                ${lib.optionalString (!__dangerouslyEnableIncrementalBuild) ''
+                  cp -rL ${patchedLock} ${lockDir}
+                ''}
               ''}
 
               runHook postPatch
@@ -213,6 +275,7 @@
           "duneLock"
           "context"
           "enableParallelBuilding"
+          "__dangerouslyEnableIncrementalBuild"
         ];
       };
 
