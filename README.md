@@ -3,8 +3,8 @@
 Turn [Dune](https://dune.build)-based OCaml projects into
 [Nix](https://nixos.org) derivations.
 
-Unlike other lang2nix tools, `dune2nix` parses Dune's lockfiles fully at Nix
-eval time, which gives us: no codegen, no
+`dune2nix` parses Dune's lockfiles fully at Nix eval time, which gives us: no
+codegen, no
 [Import From Derivation (IFD)](https://nix.dev/manual/nix/2.26/language/import-from-derivation),
 no hardcoded hash.
 
@@ -20,13 +20,6 @@ uses the latest build that address these issues. For more details, see
 There is a minimal demo project that uses
 [`janestreet/core`](https://github.com/janestreet/core) in
 [`./tests/demo`](./tests/demo).
-
-## Related Projects
-
-- [opam-nix](https://github.com/tweag/opam-nix): Turns
-  [Opam](https://opam.ocaml.org) projects into Nix, requires IFD.
-- [opam2nix](https://github.com/timbertson/opam2nix): Classical lang2nix
-  approach, requires codegen.
 
 ## Copyright & License
 
