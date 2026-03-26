@@ -48,6 +48,7 @@
         extendDrvArgs =
           finalAttrs:
           {
+            name,
             src,
             duneWorkspace ? src + "/dune-workspace",
 
@@ -162,60 +163,44 @@
             # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
             target = "_build/${context}";
 
-            # Flags used for `dune build` and `runtest`.
-            flags = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
-
-            duneDeps = lib.mapAttrs' (
-              name: _:
+            duneDeps =
               let
-                parsed = sexp.parseFile (duneLock + "/${name}");
-                depList = lib.optionals (sexp.has [ "depends" ] parsed) (
-                  lib.filter (x: x != "dune") (lib.head (sexp.get [ "depends" "all_platforms" ] parsed))
-                );
-
-                packageName = lib.head (lib.splitString "." name);
-
-                # NOMERGE wtf
                 packageTarget =
+                  depName:
+                  let
+                    packageName = lib.head (lib.splitString "." depName);
+                  in
+                  # NOMERGE wtf
                   if (packageName == "ocaml-compiler") then
                     "_build/default/dune.lock/ocaml-compiler.5.4.1.pkg"
                   else
-                    "_build/_private/${context}/.pkg/$(dune pkg print-digest ${packageName})";
-
+                    "_build/_private/${context}/.pkg/$(dune pkg print-digest ${packageName})/target";
+                deps = map packageTarget (
+                  builtins.filter (k: k != "lock.dune") (builtins.attrNames (builtins.readDir duneLock))
+                );
               in
-              lib.nameValuePair packageName (
-                stdenv.mkDerivation {
-                  name = packageName;
-                  nativeBuildInputs = [
-                    dune
-                    writableTmpDirAsHomeHook
-                  ]
-                  ++ (lib.attrVals depList duneDeps);
-
-                  src = lib.fileset.toSource {
-                    root = src;
-                    fileset = lib.fileset.unions [
-                      # NOMERGE i think we need all the dune-projects
-                      (src + "/dune-project")
-                      # NOMERGE only select the ones we need
-                      duneLock
-                    ];
-                  };
-                  patchPhase = ''
-                    rm -rf ${lockDir}
-                    cp -rL ${patchedLock} ${lockDir}
-                  '';
-                  buildPhase = ''
-                    dune build ${packageTarget}
-                  '';
-                  installPhase = ''
-                    dune install --context ${packageTarget} --prefix $out
-                  '';
-                }
-              )
-            ) (
-              # NOMERGE
-              lib.filterAttrs (k: _: k != "lock.dune") (builtins.readDir duneLock));
+              finalAttrs.overrideAttrs {
+                name = "${name}-deps";
+                src = lib.fileset.toSource {
+                  root = finalAttrs.src;
+                  fileset = lib.fileset.unions [
+                    (finalAttrs.src + "/dune-project")
+                    duneLock
+                  ];
+                };
+                patchPhase = ''
+                  rm -rf ${lockDir}
+                  cp -rL ${patchedLock} ${lockDir}
+                '';
+                buildPhase = lib.concatMapStringsSep "\n" (target: ''
+                  dune build ${target} ${lib.concatStringsSep " " finalAttrs.duneFlags}
+                '') deps;
+                doCheck = false;
+                installPhase = ''
+                  mkdir -p $out
+                  cp -r _build ${lockDir} $out/
+                '';
+              };
           in
           {
             strictDeps = true;
@@ -224,11 +209,12 @@
               dune
               # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
-
-              (lib.attrValues duneDeps)
             ];
 
             passthru = { inherit duneDeps; };
+
+            # Flags used for `dune build` and `runtest`.
+            duneFlags = [ "--display=short" ] ++ lib.optionals enableParallelBuilding [ "-j" "$NIX_BUILD_CORES" ];
 
             patchPhase = ''
               runHook prePatch
@@ -236,9 +222,26 @@
               ${lib.optionalString (lib.pathExists duneLock) ''
                 rm -rf ${lockDir}
 
-                ${lib.optionalString (!__dangerouslyEnableIncrementalBuild) ''
-                  cp -rL ${patchedLock} ${lockDir}
-                ''}
+                ${
+                  if __dangerouslyEnableIncrementalBuild then
+                    ''
+                      (
+                        builddir="$PWD"
+                        cd "${duneDeps}"
+                        for f in * ; do
+                          if [[ -a "$builddir/$f" ]]; then
+                            >&2 echo "Cannot do incremental build with existing $f"
+                            exit 1
+                          fi
+                          cp --no-preserve=mode,ownership,time -r "$f" "$builddir"
+                        done
+                      )
+                    ''
+                  else
+                    ''
+                      cp --no-preserve=mode,ownership,time -rL ${patchedLock} ${lockDir}
+                    ''
+                }
               ''}
 
               runHook postPatch
@@ -247,7 +250,7 @@
             buildPhase = ''
               runHook preBuild
 
-              dune build --display=short ${target} ${flags}
+              dune build ${target} ${lib.concatStringsSep " " finalAttrs.duneFlags}
 
               runHook postBuild
             '';
@@ -263,7 +266,7 @@
             checkPhase = ''
               runHook preCheck
 
-              dune runtest ${target} ${flags}
+              dune runtest ${target} ${lib.concatStringsSep " " finalAttrs.duneFlags}
 
               runHook postCheck
             '';
