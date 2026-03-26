@@ -185,7 +185,7 @@
             buildPhase = ''
               runHook preBuild
 
-              dune build ${target} ${flags}
+              dune build --display=short ${target} ${flags}
 
               runHook postBuild
             '';
