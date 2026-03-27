@@ -1,6 +1,6 @@
-(lang dune 3.21)
+(lang dune 3.23)
 
-(name foo)
+(name baz)
 
 (source
  (github username/reponame))
@@ -14,19 +14,11 @@
 (documentation https://url/to/documentation)
 
 (package
- (name foo)
+ (name baz)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml bar baz)
+ (depends ocaml)
  (tags
   ("add topics" "to describe" your project)))
-
-(pin
-  (url file://../bar)
-  (package (name bar)))
-
-(pin
-  (url ../baz)
-  (package (name baz)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html

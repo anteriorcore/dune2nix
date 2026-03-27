@@ -1,4 +1,4 @@
 (executable
  (public_name foo)
  (name main)
- (libraries foo bar))
+ (libraries foo bar baz))
