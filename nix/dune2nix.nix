@@ -102,11 +102,16 @@
                   if sexp.has [ "fetch" ] nodes then
                     let
                       node = sexp.get [ "fetch" ] nodes;
-                      drv = fetchurl {
-                        url = sexp.scalar [ "url" ] node;
-                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                        hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] node);
-                      };
+                      url = sexp.scalar [ "url" ] node;
+                      drv =
+                        if (sexp.has [ "checksum" ] node) then
+                          fetchurl {
+                            inherit url;
+                            # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
+                            hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] node);
+                          }
+                        else
+                          src + "/${lib.removePrefix "file://" url}";
                     in
                     [
                       [
