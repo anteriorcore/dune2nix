@@ -48,6 +48,7 @@
         extendDrvArgs =
           finalAttrs:
           {
+            name,
             src,
             srcOverrides ? _: _: { },
             duneWorkspace ? src + "/dune-workspace",
@@ -73,9 +74,22 @@
             # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
             context ? "default",
 
-            # Conventional flag used by many builders in nixpkgs including Dune.
-            # In Dune, it's used to set `-j` (jobs) flag.
-            enableParallelBuilding ? true,
+            # The target to build. It defaults to "_build/${context}", but can
+            # pass [aliases](https://dune.readthedocs.io/en/latest/reference/aliases.html)
+            # like `@pkg-install`.
+            target ? "_build/${context}",
+
+            # There's a odd issue with Dune that when `-j` flag is set it
+            # rebuilds the compiler everytime. To prevent this it's `false` by
+            # default, otherwise it is set to `$NIX_BUILD_CORES`.
+            #
+            # https://github.com/ocaml/dune/issues/12103
+            addJobsFlag ? false,
+
+            # Caches the built dependencies and only rebuilds when there's a
+            # change in `dune-*` files. It's best-effort and somewhat fragile:
+            # disabled by default, use with caution.
+            enableIncrementalBuild ? false,
             ...
           }@args:
           let
@@ -273,69 +287,126 @@
             );
             patchedLock = linkFarm lockDir lockFiles;
 
-            # For some reason, `dune build` and `dune runtest` don't accept the
-            # `--context` flag. Instead, you specify the build target directory
-            # (`_build/${context}`) -- I _hope_ this works, but I wouldn't be
-            # surprised at all even if this suddenly breaks. As I mentioned
-            # above context support is best-effort: it's very possible that I
-            # rip this out for a very minor issue.
-            #
-            # build:
-            # https://github.com/ocaml/dune/issues/9672
-            #
-            # runtest:
-            # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
-            target = "_build/${context}";
-
             # Flags used for `dune build` and `runtest`.
-            flags = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
+            jobsFlag = lib.optionalString addJobsFlag "-j $NIX_BUILD_CORES";
+
+            # Best effort incremental build cache. Ideally we'd want to build
+            # each package as an individual derivation, but that's pretty
+            # difficult and this is the compromise we make now, though it will
+            # us pretty far. - shun 2026/03/27
+            duneBuildCache = mkDuneWorkspace {
+              name = "${name}-dune-build-cache";
+              enableIncrementalBuild = false;
+
+              patchPhase = ''
+                runHook prePatch
+
+                ${lib.optionalString (lib.pathExists duneLock) ''
+                  rm -rf ${lockDir}
+                  cp -rL ${patchedLock} ${lockDir}
+                ''}
+
+                runHook postPatch
+              '';
+
+              # Create an sourceset of all `dune-*` files and `dune.lock` Since
+              # we're building only packages, we don't need the sources.
+              src =
+                with lib.fileset;
+                toSource rec {
+                  root = src;
+                  fileset = union duneLock (
+                    fileFilter (
+                      file:
+                      lib.elem file.name [
+                        "dune-project"
+                        "dune-workspace"
+                      ]
+                    ) root
+                  );
+                };
+
+              target = "@pkg-install";
+
+              installPhase = ''
+                runHook preInstall
+
+                mv _build $out
+
+                runHook postInstall
+              '';
+            };
           in
+
           {
             strictDeps = true;
             passthru = args.passthru or { } // {
-              inherit patchedLock lockDir lockFiles;
+              inherit
+                patchedLock
+                lockDir
+                lockFiles
+                duneBuildCache
+                ;
             };
 
             nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
               dune
-              # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
             ];
 
-            patchPhase = ''
-              runHook prePatch
+            # NOMERGE
+            DUNE_JOBS = 3;
 
-              ${lib.optionalString (lib.pathExists duneLock) ''
-                rm -rf ${lockDir}
-                cp -rL ${patchedLock} ${lockDir}
-              ''}
+            patchPhase =
+              args.patchPhase or ''
+                runHook prePatch
 
-              runHook postPatch
-            '';
+                ${lib.optionalString (lib.pathExists duneLock) ''
+                  rm -rf ${lockDir}
+                  cp -rL ${patchedLock} ${lockDir}
 
-            buildPhase = ''
-              runHook preBuild
+                  ${lib.optionalString enableIncrementalBuild
+                    # I'm not sure what exactly but Dune cares about some file
+                    # metadata. Combination of `cp -a` and `chmod -R u+w` seems
+                    # to work. - shun 2026/03/27
+                    ''
+                      mkdir -p _build
+                      cp -a ${duneBuildCache}/. _build
+                      chmod -R u+w _build
+                    ''
+                  }
+                ''}
 
-              dune build --display=short ${target} ${flags}
+                runHook postPatch
+              '';
 
-              runHook postBuild
-            '';
+            buildPhase =
+              # NOMERGE short sandbox
+              args.buildPhase or ''
+                runHook preBuild
 
-            installPhase = ''
-              runHook preInstall
+                dune build --display=verbose ${target} ${jobsFlag}
 
-              dune install --context ${context} --prefix $out
+                runHook postBuild
+              '';
 
-              runHook postInstall
-            '';
+            installPhase =
+              args.installPhase or ''
+                runHook preInstall
 
-            checkPhase = ''
-              runHook preCheck
+                dune install --context ${context} --prefix $out
 
-              dune runtest ${target} ${flags}
+                runHook postInstall
+              '';
 
-              runHook postCheck
-            '';
+            checkPhase =
+              args.checkPhase or ''
+                runHook preCheck
+
+                dune runtest ${target} ${jobsFlag}
+
+                runHook postCheck
+              '';
           };
 
         excludeDrvArgNames = [
@@ -345,6 +416,7 @@
           "context"
           "enableParallelBuilding"
           "srcOverrides"
+          "enableIncrementalBuild"
         ];
       };
 

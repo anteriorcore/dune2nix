@@ -1,6 +1,6 @@
 open Core
 
 let () =
-  let x = Some "🐫" in
+  let x = Some "NOMERGE-foo" in
   let y = Option.value x ~default:"🏜️" in
   print_endline y
