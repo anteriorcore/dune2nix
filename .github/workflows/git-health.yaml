@@ -1,3 +1,5 @@
+name: Git Health
+
 on:
   pull_request:
     types:
@@ -5,8 +7,6 @@ on:
       - synchronize
       - reopened
   merge_group:
-
-name: PR
 
 jobs:
   conventional-commit:
@@ -19,6 +19,7 @@ jobs:
           TITLE: "${{ github.event.pull_request.title || github.event.merge_group.head_commit.message }}"
 
   merging-into-master:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
