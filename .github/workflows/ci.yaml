@@ -2,9 +2,7 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - master
+  merge_group:
 
 jobs:
   nocommit:
@@ -14,8 +12,18 @@ jobs:
       - uses: nobssoftware/nocommit@5c3cf9519fe40b80b0954d254085b67b532a5dc3
 
   nix-flake-check:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          key: "nix-eval-cache-${{ runner.os }}-${{ runner.arch }}"
+          path: "~/.cache/nix"
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15
       - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1
@@ -24,11 +32,24 @@ jobs:
           name: anterior-private
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-      - run: nix flake check -L
+      - run: nix run .#nix-flake-check-changed
 
-  nix-flake-show:
+  nix-flake-health:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          key: "nix-eval-cache-${{ runner.os }}-${{ runner.arch }}"
+          path: "~/.cache/nix"
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: nixbuild/nix-quick-install-action@c57091870f58910a7aef53a0b0a99f6ba568aa6f
+      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15
+      - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1
+        if: github.repository_owner == 'anteriorcore'
+        with:
+          name: anterior-private
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - run: nix flake show
+      - run: nix flake lock --no-update-lock-file
+      - run: nix flake check --no-build
+

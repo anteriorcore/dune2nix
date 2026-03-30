@@ -21,6 +21,13 @@
     };
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     systems.url = "github:nix-systems/default";
+    tools = {
+      url = "github:anteriorcore/tools";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+      inputs.flake-parts.follows = "flake-parts";
+      inputs.systems.follows = "systems";
+    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
