@@ -7,6 +7,7 @@
       system,
       pkgs,
       lib,
+      inputs',
       ...
     }:
     let
@@ -22,6 +23,8 @@
         inherit inputs;
         allowNetwork = false;
       };
+
+      packages = { inherit (inputs'.tools.packages) nix-flake-check-changed nix-grep-to-build; };
 
       # Build all packages as a check.
       checks =
