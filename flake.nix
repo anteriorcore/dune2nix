@@ -49,6 +49,7 @@
         ./nix/treefmt.nix
         inputs.devshell.flakeModule
         inputs.nix-unit.modules.flake.default
+        inputs.tools.flakeModules.checkBuildAll
         inputs.treefmt-nix.flakeModule
         # keep-sorted end
       ];

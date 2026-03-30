@@ -3,6 +3,9 @@ name: CI
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - master
 
 jobs:
   nocommit:
@@ -52,4 +55,3 @@ jobs:
       - run: nix flake show
       - run: nix flake lock --no-update-lock-file
       - run: nix flake check --no-build
-
