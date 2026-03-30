@@ -26,15 +26,14 @@
 
         tests = {
           "test basic meta main program" = {
-            expr = config.legacyPackages.tests.build-no_deps.meta.mainProgram;
-            expected = "no_deps";
+            expr = config.legacyPackages.tests.demo.meta.mainProgram;
+            expected = "demo";
           };
         };
       };
 
       packages = { inherit (inputs'.tools.packages) nix-flake-check-changed nix-grep-to-build; };
 
-      # Build all packages as a check.
       legacyPackages.tests =
         let
           go =
@@ -47,7 +46,7 @@
               if lib.isAttrs v && !lib.isDerivation v then
                 go curr v
               else
-                { "build-${lib.concatStringsSep "/" curr}" = v; }
+                { "${lib.concatStringsSep "/" curr}" = v; }
             ) attrs;
         in
         go [ ] (
@@ -56,6 +55,8 @@
             directory = ../tests;
           }
         );
-      checks = config.legacyPackages.tests;
+
+      # Build all tests as a check.
+      checks = lib.mapAttrs' (k: v: lib.nameValuePair "build-${k}" v) config.legacyPackages.tests;
     };
 }
