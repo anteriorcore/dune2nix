@@ -28,7 +28,7 @@ jobs:
           key: "nix-eval-cache-${{ runner.os }}-${{ runner.arch }}"
           path: "~/.cache/nix"
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15
+      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe
       - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1
         if: github.repository_owner == 'anteriorcore'
         with:
@@ -45,7 +45,7 @@ jobs:
           key: "nix-eval-cache-${{ runner.os }}-${{ runner.arch }}"
           path: "~/.cache/nix"
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15
+      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe
       - uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1
         if: github.repository_owner == 'anteriorcore'
         with:
