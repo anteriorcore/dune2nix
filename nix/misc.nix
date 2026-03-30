@@ -5,6 +5,7 @@
   perSystem =
     {
       system,
+      config,
       pkgs,
       lib,
       inputs',
@@ -22,12 +23,19 @@
       nix-unit = {
         inherit inputs;
         allowNetwork = false;
+
+        tests = {
+          "test basic meta main program" = {
+            expr = config.legacyPackages.tests.build-no_deps.meta.mainProgram;
+            expected = "no_deps";
+          };
+        };
       };
 
       packages = { inherit (inputs'.tools.packages) nix-flake-check-changed nix-grep-to-build; };
 
       # Build all packages as a check.
-      checks =
+      legacyPackages.tests =
         let
           go =
             path: attrs:
@@ -48,5 +56,6 @@
             directory = ../tests;
           }
         );
+      checks = config.legacyPackages.tests;
     };
 }

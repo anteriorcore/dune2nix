@@ -53,7 +53,7 @@
             tokenize =
               text:
               lib.pipe text [
-                # Capture parens or chars that are neither parens or space
+                # Capture parens or chars that are neither parens nor space
                 (lib.split "([()]|[^()[:space:]]+)")
                 (lib.filter lib.isList)
                 lib.concatLists
@@ -90,6 +90,9 @@
             in
             assert lib.assertMsg (found != null) "sexp.get: key '${key}' not found";
             get rest (lib.tail found);
+
+        # convert s expression encoded alist to an attrset.
+        fromAlist = lib.foldl' (acc: x: acc // { "${lib.head x}" = lib.tail x; }) { };
 
         # Get first scalar element at path. Throws if not found.
         scalar =
@@ -131,6 +134,7 @@
           parse
           has
           get
+          fromAlist
           scalar
           update
           toString
@@ -296,6 +300,47 @@
           "test: throws on missing nested key" = {
             expr = get [ "a" "missing" ] (parse "(a (b c))");
             expectedError.type = "ThrownError";
+          };
+        };
+        fromAlist = {
+          "test" = {
+            expr = fromAlist ([
+              [
+                "a"
+                "b"
+                "c"
+              ]
+              [
+                "x"
+                "y"
+                "z"
+              ]
+              [
+                "aa"
+                "bb"
+                [
+                  "cc"
+                  "dd"
+                ]
+              ]
+            ]);
+            expected = {
+              a = [
+                "b"
+                "c"
+              ];
+              aa = [
+                "bb"
+                [
+                  "cc"
+                  "dd"
+                ]
+              ];
+              x = [
+                "y"
+                "z"
+              ];
+            };
           };
         };
         scalar = {
