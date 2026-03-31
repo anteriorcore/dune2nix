@@ -6,7 +6,6 @@
       devshells.default = {
         packages = with pkgs; [
           dune
-          opam
 
           # LSPs
           nixd
