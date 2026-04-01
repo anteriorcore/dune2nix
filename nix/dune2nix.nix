@@ -93,12 +93,68 @@
 
             duneLock = args.duneLock or (src + "/${lockDir}");
 
+            fetch =
+              {
+                name,
+                url,
+                checksum,
+                ...
+              }:
+              stdenv.mkDerivation {
+                name = "${name}-src";
+                src = fetchurl {
+                  inherit url;
+                  # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
+                  hash = lib.replaceString "=" ":" checksum;
+                };
+                # Some of the fixupPhases are extremely useful, others are
+                # actively harmful to a supposedly transparent tarball unpacking
+                # derivation.  Particularly block passes which change file
+                # locations.
+                dontMoveSbin = true;
+                # Extract single file archives into single file derivations
+                postHook = ''
+                  unpackCmdHooks+=(singleFileArchive)
+                  fileToCopy=.
+                  singleFileArchive() {
+                    for f in */ ; do
+                      if [[ -d "$f" ]]; then
+                        return 0
+                      fi
+                    done
+                    mkdir source
+                    fileToCopy="$1"
+                  }
+                  # This fixup phase has no individual flag, so override the
+                  # implementing function (yuck)
+                  _moveToShare() {
+                    true
+                  }
+                '';
+                installPhase = ''
+                  runHook preInstall
+
+                  if [[ -d "$fileToCopy" ]]; then
+                    cp -r "$fileToCopy" $out
+                  else
+                    cp "$fileToCopy" $out
+                  fi
+
+                  runHook postInstall
+                '';
+                phases = [
+                  "unpackPhase"
+                  "installPhase"
+                  "fixupPhase"
+                ];
+              };
+
             # Turn a dependency location sexp ([ "fetch" ... ], [ "copy" ... ])
             # into an attrset.  Also converts a { fetch = ... } with a url and
             # checksum into a { copy = <fixed output derivation fetcher of the
             # url> }.
             parseLocationSexp =
-              nodes:
+              name: nodes:
               let
                 a = sexp.fromAlist nodes;
               in
@@ -107,11 +163,7 @@
                   node = builtins.mapAttrs (_: builtins.head) (sexp.fromAlist a.fetch);
                   drv =
                     if (node ? checksum) then
-                      fetchurl {
-                        inherit (node) url;
-                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                        hash = lib.replaceString "=" ":" (node.checksum);
-                      }
+                      fetch ({ inherit name; } // node)
                     else
                       src + "/${lib.removePrefix "file://" node.url}";
                 in
@@ -148,10 +200,12 @@
             # }
             #
             # Both fields are optional.
-            parseLockSexp = mapAttrsOptional {
-              source = parseLocationSexp;
-              extra_sources = v: builtins.mapAttrs (_: parseLocationSexp) (sexp.fromAlist v);
-            };
+            parseLockSexp =
+              name:
+              mapAttrsOptional {
+                source = parseLocationSexp name;
+                extra_sources = v: builtins.mapAttrs parseLocationSexp (sexp.fromAlist v);
+              };
 
             # Convert a fully parsed lock file, with our custom sourceSpec
             # semantics, back into its original sexp form.
@@ -176,7 +230,7 @@
                 {
                   inherit name;
                   passthru = {
-                    sexp = parseLockSexp a;
+                    sexp = parseLockSexp name a;
                     # Nothing to patch for `lock.dune`, it's only used during
                     # relocking (i.e. not used during build).
                     text = if name == "lock.dune" then original else sexp.toString (lockFileToAlist self.passthru.sexp);
