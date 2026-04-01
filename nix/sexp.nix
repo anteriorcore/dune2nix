@@ -9,6 +9,7 @@
         mapAttrsN =
           fn: n: attrs:
           if n <= 0 then attrs else builtins.mapAttrs (_: mapAttrsN fn (n - 1)) (fn attrs);
+        cons = a: b: [ a ] ++ b;
       in
       rec {
         parse =
@@ -100,6 +101,9 @@
         # Like fromAlist, but with customizable depth
         fromAlistN = mapAttrsN fromAlist;
 
+        # Convert an attrset to an attribute list
+        toAlist = lib.mapAttrsToList cons;
+
         # Get first scalar element at path. Throws if not found.
         scalar =
           path: nodes:
@@ -132,6 +136,7 @@
           lib.concatMapStringsSep lineSep go nodes;
 
         parseFile = path: parse (lib.readFile path);
+
       };
 
     tests =
@@ -142,10 +147,25 @@
           get
           fromAlist
           fromAlistN
+          toAlist
           scalar
           update
           toString
           ;
+        alistAttrsetFixture = {
+          a = [
+            "b"
+            [
+              "c"
+              1
+            ]
+          ];
+          e = [ 2 ];
+          x = [
+            { y = 3; }
+            { z = 4; }
+          ];
+        };
       in
       {
         parse = {
@@ -309,49 +329,47 @@
             expectedError.type = "ThrownError";
           };
         };
-        fromAlist = {
-          "test" = {
-            expr = fromAlist ([
+        fromAlist.test = {
+          expr = fromAlist ([
+            [
+              "a"
+              "b"
+              "c"
+            ]
+            [
+              "x"
+              "y"
+              "z"
+            ]
+            [
+              "aa"
+              "bb"
               [
-                "a"
-                "b"
-                "c"
+                "cc"
+                "dd"
               ]
+            ]
+          ]);
+          expected = {
+            a = [
+              "b"
+              "c"
+            ];
+            aa = [
+              "bb"
               [
-                "x"
-                "y"
-                "z"
+                "cc"
+                "dd"
               ]
-              [
-                "aa"
-                "bb"
-                [
-                  "cc"
-                  "dd"
-                ]
-              ]
-            ]);
-            expected = {
-              a = [
-                "b"
-                "c"
-              ];
-              aa = [
-                "bb"
-                [
-                  "cc"
-                  "dd"
-                ]
-              ];
-              x = [
-                "y"
-                "z"
-              ];
-            };
+            ];
+            x = [
+              "y"
+              "z"
+            ];
           };
         };
         fromAlistN = {
-          "test" = {
+          test = {
             expr = fromAlistN 2 ([
               [
                 "a"
@@ -392,17 +410,77 @@
               a.b = [ "c" ];
               a.e = [ "f" ];
               u.v = [
-                "w"
                 [
-                  "x"
+                  "w"
                   [
-                    "y"
-                    [ "z" ]
+                    "x"
+                    [
+                      "y"
+                      [ "z" ]
+                    ]
                   ]
                 ]
               ];
               aa.cc = [ "dd" ];
             };
+          };
+        };
+        toAlist = {
+          test = {
+            expr = toAlist alistAttrsetFixture;
+            expected = [
+              [
+                "a"
+                "b"
+                [
+                  "c"
+                  1
+                ]
+              ]
+              [
+                "e"
+                2
+              ]
+              [
+                "x"
+                { y = 3; }
+                { z = 4; }
+              ]
+            ];
+          };
+          "test: toAlist ∘ fromAlist" = {
+            expr = toAlist (fromAlist [
+              [
+                "a"
+                "b"
+              ]
+              [
+                "x"
+                "z"
+              ]
+              [
+                "b"
+                "d"
+              ]
+            ]);
+            expected = [
+              [
+                "a"
+                "b"
+              ]
+              [
+                "b"
+                "d"
+              ]
+              [
+                "x"
+                "z"
+              ]
+            ];
+          };
+          "test: fromAlist ∘ toAlist" = {
+            expected = alistAttrsetFixture;
+            expr = fromAlist (toAlist alistAttrsetFixture);
           };
         };
         scalar = {
