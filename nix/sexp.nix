@@ -6,6 +6,9 @@
     lib.sexp =
       let
         hasKey = key: n: lib.isList n && lib.head n == key;
+        mapAttrsN =
+          fn: n: attrs:
+          if n <= 0 then attrs else builtins.mapAttrs (_: mapAttrsN fn (n - 1)) (fn attrs);
       in
       rec {
         parse =
@@ -91,8 +94,11 @@
             assert lib.assertMsg (found != null) "sexp.get: key '${key}' not found";
             get rest (lib.tail found);
 
-        # convert s expression encoded alist to an attrset.
+        # Convert s-expression encoded attribute list to an attrset
         fromAlist = lib.foldl' (acc: x: acc // { "${lib.head x}" = lib.tail x; }) { };
+
+        # Like fromAlist, but with customizable depth
+        fromAlistN = mapAttrsN fromAlist;
 
         # Get first scalar element at path. Throws if not found.
         scalar =
@@ -135,6 +141,7 @@
           has
           get
           fromAlist
+          fromAlistN
           scalar
           update
           toString
@@ -340,6 +347,61 @@
                 "y"
                 "z"
               ];
+            };
+          };
+        };
+        fromAlistN = {
+          "test" = {
+            expr = fromAlistN 2 ([
+              [
+                "a"
+                [
+                  "b"
+                  "c"
+                ]
+                [
+                  "e"
+                  "f"
+                ]
+              ]
+              [
+                "u"
+                [
+                  "v"
+                  [
+                    "w"
+                    [
+                      "x"
+                      [
+                        "y"
+                        [ "z" ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+              [
+                "aa"
+                [
+                  "cc"
+                  "dd"
+                ]
+              ]
+            ]);
+            expected = {
+              a.b = [ "c" ];
+              a.e = [ "f" ];
+              u.v = [
+                "w"
+                [
+                  "x"
+                  [
+                    "y"
+                    [ "z" ]
+                  ]
+                ]
+              ];
+              aa.cc = [ "dd" ];
             };
           };
         };

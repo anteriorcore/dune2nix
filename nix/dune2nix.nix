@@ -244,15 +244,7 @@
             # pick... this is a sensible default and we can address if needed.
             defaultMeta = lib.optionalAttrs (lib.pathExists binDuneFile) (
               let
-                mapAttrsN =
-                  fn: n: attrs:
-                  if
-                    n <= 0 # comment to prevent line break here
-                  then
-                    attrs
-                  else
-                    builtins.mapAttrs (_: mapAttrsN fn (n - 1)) (fn attrs);
-                binDune = mapAttrsN (sexp.fromAlist) 2 (sexp.parseFile binDuneFile);
+                binDune = sexp.fromAlistN 2 (sexp.parseFile binDuneFile);
                 mainProgram = lib.head (
                   binDune.executable.public_name or binDune.executables.public_names or [ null ]
                 );
