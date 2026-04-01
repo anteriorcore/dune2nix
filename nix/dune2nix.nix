@@ -6,10 +6,10 @@
       newScope,
       fetchurl,
       linkFarm,
-      writeText,
       dune,
       stdenv,
       writableTmpDirAsHomeHook,
+      writeText,
       overrideScope ? _: _: { },
     }:
     let
@@ -92,63 +92,102 @@
 
             duneLock = args.duneLock or (src + "/${lockDir}");
 
-            # Patch "fetch" blocks (in "source" and "extra_sources") to "copy"
-            # blocks pointing to Nix store paths.
-            patchLock =
+            # Turn a dependency location sexp ([ "fetch" ... ], [ "copy" ... ])
+            # into an attrset.  Also converts a { fetch = ... } with a url and
+            # checksum into a { copy = <fixed output derivation fetcher of the
+            # url> }.
+            parseLocationSexp =
+              nodes:
               let
-                # Replace (fetch ...) with (copy <store-path>)
-                fetchToCopy =
-                  nodes:
-                  if sexp.has [ "fetch" ] nodes then
-                    let
-                      node = sexp.get [ "fetch" ] nodes;
-                      url = sexp.scalar [ "url" ] node;
-                      drv =
-                        if (sexp.has [ "checksum" ] node) then
-                          fetchurl {
-                            inherit url;
-                            # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                            hash = lib.replaceString "=" ":" (sexp.scalar [ "checksum" ] node);
-                          }
-                        else
-                          src + "/${lib.removePrefix "file://" url}";
-                    in
-                    [
-                      [
-                        "copy"
-                        drv
-                      ]
-                    ]
-                  else
-                    nodes;
+                a = sexp.fromAlist nodes;
               in
-              (lib.flip lib.pipe) [
-                (sexp.update [ "source" ] fetchToCopy)
-                (sexp.update [ "extra_sources" ] (
-                  map (entry: [ (lib.head entry) ] ++ fetchToCopy (lib.tail entry))
-                ))
-              ];
-
-            patchedLock = linkFarm lockDir (
-              lib.mapAttrs (
-                name: _:
+              if a ? fetch then
                 let
-                  text = lib.readFile (duneLock + "/${name}");
-                  patched =
-                    if name == "lock.dune" then
-                      # Nothing to patch for `lock.dune`, it's only used during
-                      # relocking (i.e. not used during build).
-                      text
+                  node = builtins.mapAttrs (_: builtins.head) (sexp.fromAlist a.fetch);
+                  drv =
+                    if (node ? checksum) then
+                      fetchurl {
+                        inherit (node) url;
+                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
+                        hash = lib.replaceString "=" ":" (node.checksum);
+                      }
                     else
-                      lib.pipe text [
-                        sexp.parse
-                        patchLock
-                        sexp.toString
-                      ];
+                      src + "/${lib.removePrefix "file://" node.url}";
                 in
-                writeText name patched
-              ) (builtins.readDir duneLock)
-            );
+                {
+                  copy = drv;
+                }
+              else
+                a;
+
+            locationToAlist =
+              a: sexp.toAlist (builtins.mapAttrs (_: v: if builtins.isList v then v else [ v ]) a);
+
+            # like mapAttrs but takes an attrset of functions, and applies each
+            # value from the input attrset to the function of the same name in
+            # the function map, if present.  If not present, the value is passed
+            # through verbatim.
+            mapAttrsOptional = fns: builtins.mapAttrs (n: fns.${n} or lib.id);
+
+            # Convert a parsed lock file in sexp mode to an attrset containing
+            # only its source(s), all as attrsets:
+            #
+            # [ .... ["source" ["fetch" ...] ["extra_sources ["a" ..] ["b" ..]]]
+            #
+            # =>
+            #
+            # {
+            #   {
+            #     source.copy = <a derivation>;
+            #     extra_sources = {
+            #       a = ...;
+            #       b = ...;
+            #     };
+            #   }
+            # }
+            #
+            # Both fields are optional.
+            parseLockSexp = mapAttrsOptional {
+              source = parseLocationSexp;
+              extra_sources = v: builtins.mapAttrs (_: parseLocationSexp) (sexp.fromAlist v);
+            };
+
+            # Convert a fully parsed lock file, with our custom sourceSpec
+            # semantics, back into its original sexp form.
+            lockFileToAlist =
+              a:
+              sexp.toAlist (
+                mapAttrsOptional {
+                  source = locationToAlist;
+                  extra_sources = v: sexp.toAlist (builtins.mapAttrs (_: locationToAlist) v);
+                } a
+              );
+
+            mkLockFile =
+              name:
+              stdenv.mkDerivation (
+                self:
+                let
+                  original = lib.readFile (duneLock + "/${name}");
+                  # Assumption: lockfiles are alists at the toplevel.
+                  a = sexp.fromAlist (sexp.parse original);
+                in
+                {
+                  inherit name;
+                  passthru = {
+                    sexp = parseLockSexp a;
+                    # Nothing to patch for `lock.dune`, it's only used during
+                    # relocking (i.e. not used during build).
+                    text = if name == "lock.dune" then original else sexp.toString (lockFileToAlist self.passthru.sexp);
+                  };
+                  dontUnpack = true;
+                  contents = writeText name self.passthru.text;
+                  installPhase = "cp $contents $out";
+                }
+              );
+
+            lockFiles = lib.mapAttrs (name: _: mkLockFile name) (builtins.readDir duneLock);
+            patchedLock = linkFarm lockDir lockFiles;
 
             # For some reason, `dune build` and `dune runtest` don't accept the
             # `--context` flag. Instead, you specify the build target directory
@@ -169,6 +208,7 @@
           in
           {
             strictDeps = true;
+            passthru = { inherit patchedLock lockDir lockFiles; };
 
             nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
               dune
