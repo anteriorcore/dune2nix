@@ -49,6 +49,7 @@
           finalAttrs:
           {
             src,
+            srcOverrides ? _: _: { },
             duneWorkspace ? src + "/dune-workspace",
 
             # The build context. Dune supports "default" and Opam switch context,
@@ -186,7 +187,9 @@
                 }
               );
 
-            lockFiles = lib.mapAttrs (name: _: mkLockFile name) (builtins.readDir duneLock);
+            lockFiles = lib.fix (
+              lib.extends srcOverrides (_: lib.mapAttrs (name: _: mkLockFile name) (builtins.readDir duneLock))
+            );
             patchedLock = linkFarm lockDir lockFiles;
 
             # For some reason, `dune build` and `dune runtest` don't accept the
@@ -258,6 +261,7 @@
           "duneLock"
           "context"
           "enableParallelBuilding"
+          "srcOverrides"
         ];
       };
 
