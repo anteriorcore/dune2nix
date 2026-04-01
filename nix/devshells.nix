@@ -6,6 +6,7 @@
       devshells.default = {
         packages = with pkgs; [
           dune
+          ocaml
           opam
 
           # LSPs
