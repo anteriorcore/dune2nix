@@ -1,0 +1,22 @@
+(lang dune 3.21)
+
+(name override)
+
+(generate_opam_files false)
+
+(source
+ (github anteriorcore/dune2nix))
+
+(authors "Anterior <tech@anterior.com>")
+
+(license AGPLv3)
+
+(package
+ (name override)
+ (synopsis "A short synopsis")
+ (description "A longer description")
+ (depends ocaml base64)
+ (tags
+  ("add topics" "to describe" your project)))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html

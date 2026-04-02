@@ -169,6 +169,7 @@
                       '';
                       phases = [
                         "unpackPhase"
+                        "patchPhase"
                         "installPhase"
                         "fixupPhase"
                       ];
