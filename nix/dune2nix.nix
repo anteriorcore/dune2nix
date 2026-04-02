@@ -292,7 +292,9 @@
           in
           {
             strictDeps = true;
-            passthru = { inherit patchedLock lockDir lockFiles; };
+            passthru = args.passthru or { } // {
+              inherit patchedLock lockDir lockFiles;
+            };
 
             nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
               dune
