@@ -93,82 +93,162 @@
 
             duneLock = args.duneLock or (src + "/${lockDir}");
 
-            # Turn a dependency location sexp ([ "fetch" ... ], [ "copy" ... ])
-            # into an attrset.  Also converts a { fetch = ... } with a url and
-            # checksum into a { copy = <fixed output derivation fetcher of the
-            # url> }.
-            parseLocationSexp =
-              nodes:
-              let
-                a = sexp.fromAlist nodes;
-              in
-              if a ? fetch then
-                let
-                  node = builtins.mapAttrs (_: builtins.head) (sexp.fromAlist a.fetch);
-                  drv =
-                    if (node ? checksum) then
-                      fetchurl {
-                        inherit (node) url;
-                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                        hash = lib.replaceString "=" ":" (node.checksum);
-                      }
-                    else
-                      src + "/${lib.removePrefix "file://" node.url}";
-                in
-                {
-                  copy = drv;
-                }
-              else
-                a;
-
-            locationToAlist =
-              a: sexp.toAlist (builtins.mapAttrs (_: v: if builtins.isList v then v else [ v ]) a);
-
-            # like mapAttrs but takes an attrset of functions, and applies each
-            # value from the input attrset to the function of the same name in
-            # the function map, if present.  If not present, the value is passed
-            # through verbatim.
-            mapAttrsOptional = fns: builtins.mapAttrs (n: fns.${n} or lib.id);
-
-            # Convert a parsed lock file in sexp mode to an attrset containing
-            # only its source(s), all as attrsets:
-            #
-            # [ .... ["source" ["fetch" ...] ["extra_sources ["a" ..] ["b" ..]]]
-            #
-            # =>
-            #
-            # {
-            #   {
-            #     source.copy = <a derivation>;
-            #     extra_sources = {
-            #       a = ...;
-            #       b = ...;
-            #     };
-            #   }
-            # }
-            #
-            # Both fields are optional.
-            parseLockSexp = mapAttrsOptional {
-              source = parseLocationSexp;
-              extra_sources = v: builtins.mapAttrs (_: parseLocationSexp) (sexp.fromAlist v);
-            };
-
-            # Convert a fully parsed lock file, with our custom sourceSpec
-            # semantics, back into its original sexp form.
-            lockFileToAlist =
-              a:
-              sexp.toAlist (
-                mapAttrsOptional {
-                  source = locationToAlist;
-                  extra_sources = v: sexp.toAlist (builtins.mapAttrs (_: locationToAlist) v);
-                } a
-              );
-
+            # Build a dune.lock/xxxx.pkg file from the structure defined in its
+            # own passthru elements.  This is primarily useful as target for
+            # overlays who want to change something about the dependency source
+            # before it goes into the final large build.
             mkLockFile =
               name:
               stdenv.mkDerivation (
                 self:
                 let
+                  fetch =
+                    {
+                      name,
+                      url,
+                      checksum,
+                      ...
+                    }:
+                    stdenv.mkDerivation {
+                      name = "${name}-src";
+                      src = fetchurl {
+                        inherit url;
+                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
+                        hash = lib.replaceString "=" ":" checksum;
+                      };
+                      # Some of the fixupPhases are extremely useful, others are
+                      # actively harmful to a supposedly transparent tarball unpacking
+                      # derivation.  Particularly block passes which change file
+                      # locations.
+                      dontMoveSbin = true;
+                      # Extract single file archives into single file derivations
+                      postHook = ''
+                        unpackCmdHooks+=(singleFileArchive)
+                        fileToCopy=.
+                        singleFileArchive() {
+                          for f in */ ; do
+                            if [[ -d "$f" ]]; then
+                              return 0
+                            fi
+                          done
+                          mkdir source
+                          fileToCopy="$1"
+                        }
+                        # This fixup phase has no individual flag, so override the
+                        # implementing function (yuck)
+                        _moveToShare() {
+                          true
+                        }
+                      '';
+                      # A very useful default phase, but there’s one particular
+                      # type of dune build instruction which (apparently) risks
+                      # causing build problems when combined with fixupPhase:
+                      # (patch ...).  Heuristic for fixupPhase of the source is
+                      # therefore a little complicated, but probably worth it:
+                      # enable, unless the dune build instructions include
+                      # patching.
+                      dontFixup =
+                        let
+                          build = self.passthru.sexp.build or [ ];
+                          imap0Recursive =
+                            f: lib.imap0 (idx: el: if builtins.isList el then imap0Recursive f el else f idx el);
+                          anyRecursive = f: builtins.any (el: if builtins.isList el then anyRecursive f el else f el);
+                          iany0Recursive = f: els: anyRecursive lib.id (imap0Recursive f els);
+                        in
+                        iany0Recursive (idx: el: el == "patch" && idx == 0) build;
+                      installPhase = ''
+                        runHook preInstall
+
+                        if [[ -d "$fileToCopy" ]]; then
+                          cp -r "$fileToCopy" $out
+                        else
+                          cp "$fileToCopy" $out
+                        fi
+
+                        runHook postInstall
+                      '';
+                      phases = [
+                        "unpackPhase"
+                        "installPhase"
+                        "fixupPhase"
+                      ];
+                    };
+
+                  # Turn a dependency location sexp ([ "fetch" ... ], [ "copy" ... ])
+                  # into an attrset.  Also converts a { fetch = ... } with a url and
+                  # checksum into a { copy = <fixed output derivation fetcher of the
+                  # url> }.
+                  parseLocationSexp =
+                    name: nodes:
+                    let
+                      a = sexp.fromAlist nodes;
+                    in
+                    if a ? fetch then
+                      let
+                        node = builtins.mapAttrs (_: builtins.head) (sexp.fromAlist a.fetch);
+                        drv =
+                          if (node ? checksum) then
+                            fetch (
+                              {
+                                inherit name;
+                                lockFileSexp = a;
+                              }
+                              // node
+                            )
+                          else
+                            src + "/${lib.removePrefix "file://" node.url}";
+                      in
+                      {
+                        copy = drv;
+                      }
+                    else
+                      a;
+
+                  locationToAlist =
+                    a: sexp.toAlist (builtins.mapAttrs (_: v: if builtins.isList v then v else [ v ]) a);
+
+                  # like mapAttrs but takes an attrset of functions, and applies each
+                  # value from the input attrset to the function of the same name in
+                  # the function map, if present.  If not present, the value is passed
+                  # through verbatim.
+                  mapAttrsOptional = fns: builtins.mapAttrs (n: fns.${n} or lib.id);
+
+                  # Convert a parsed lock file in sexp mode to an attrset containing
+                  # only its source(s), all as attrsets:
+                  #
+                  # [ .... ["source" ["fetch" ...] ["extra_sources ["a" ..] ["b" ..]]]
+                  #
+                  # =>
+                  #
+                  # {
+                  #   {
+                  #     source.copy = <a derivation>;
+                  #     extra_sources = {
+                  #       a = ...;
+                  #       b = ...;
+                  #     };
+                  #   }
+                  # }
+                  #
+                  # Both fields are optional.
+                  parseLockSexp =
+                    name:
+                    mapAttrsOptional {
+                      source = parseLocationSexp name;
+                      extra_sources = v: builtins.mapAttrs parseLocationSexp (sexp.fromAlist v);
+                    };
+
+                  # Convert a fully parsed lock file, with our custom sourceSpec
+                  # semantics, back into its original sexp form.
+                  lockFileToAlist =
+                    a:
+                    sexp.toAlist (
+                      mapAttrsOptional {
+                        source = locationToAlist;
+                        extra_sources = v: sexp.toAlist (builtins.mapAttrs (_: locationToAlist) v);
+                      } a
+                    );
+
                   original = lib.readFile (duneLock + "/${name}");
                   # Assumption: lockfiles are alists at the toplevel.
                   a = sexp.fromAlist (sexp.parse original);
@@ -176,7 +256,7 @@
                 {
                   inherit name;
                   passthru = {
-                    sexp = parseLockSexp a;
+                    sexp = parseLockSexp name a;
                     # Nothing to patch for `lock.dune`, it's only used during
                     # relocking (i.e. not used during build).
                     text = if name == "lock.dune" then original else sexp.toString (lockFileToAlist self.passthru.sexp);
