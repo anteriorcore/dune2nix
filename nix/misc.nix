@@ -29,6 +29,16 @@
             expr = config.legacyPackages.tests.demo.meta.mainProgram;
             expected = "demo";
           };
+
+          # regression test for anteriorcore/dune2nix#18
+          "test passthru not overridden" = {
+            expr =
+              (dune2nix.mkDuneProject {
+                src = ../tests/no_deps;
+                passthru.foo = 123;
+              }).foo or null;
+            expected = 123;
+          };
         };
       };
 
