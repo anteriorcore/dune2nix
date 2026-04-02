@@ -1,0 +1,4 @@
+(executable
+ (public_name zzzz64)
+ (name zzzz64)
+ (libraries base64))
