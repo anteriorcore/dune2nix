@@ -1,0 +1,17 @@
+(lang dune 3.21)
+
+(name cram_test)
+
+(generate_opam_files false)
+
+(source
+ (github anteriorcore/dune2nix))
+
+(authors "Anterior <tech@anterior.com>")
+
+(license AGPLv3)
+
+(package
+ (name cram_test)
+ (synopsis "Testing cram tests in dune2nix")
+ (depends ocaml))
