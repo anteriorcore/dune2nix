@@ -19,7 +19,6 @@ dune2nix.mkDuneProject {
               nativeBuildInputs = old.nativeBuildInputs or [ ] ++ [ gnused ];
               postPatch = ''
                 sed -i -e 's/ABCD[^"]\+/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/' src/*.ml
-                rm -rf test
               '';
             };
           })
