@@ -79,17 +79,14 @@
             # like `@pkg-install`.
             target ? "_build/${context}",
 
-            # There's a odd issue with Dune that when `-j` flag is set it
-            # rebuilds the compiler everytime. To prevent this it's `false` by
-            # default, otherwise it is set to `$NIX_BUILD_CORES`.
-            #
-            # https://github.com/ocaml/dune/issues/12103
-            addJobsFlag ? false,
-
             # Caches the built dependencies and only rebuilds when there's a
             # change in `dune-*` files. It's best-effort and somewhat fragile:
             # disabled by default, use with caution.
             enableIncrementalBuild ? false,
+
+            # Concurrency is part of the cache key. If incremental build is
+            # enabled, set concurrency to 1 to make the cache key stable.
+            jobs ? if enableIncrementalBuild then 1 else "$NIX_BUILD_CORES",
             ...
           }@args:
           let
@@ -288,43 +285,37 @@
             patchedLock = linkFarm lockDir lockFiles;
 
             # Flags used for `dune build` and `runtest`.
-            jobsFlag = lib.optionalString addJobsFlag "-j $NIX_BUILD_CORES";
+            jobsFlag = "-j ${toString jobs}";
 
             # Best effort incremental build cache. Ideally we'd want to build
             # each package as an individual derivation, but that's pretty
             # difficult and this is the compromise we make now, though it will
             # us pretty far. - shun 2026/03/27
-            duneBuildCache = mkDuneWorkspace {
-              name = "${name}-dune-build-cache";
-              enableIncrementalBuild = false;
+            duneCache = mkDuneWorkspace {
+              inherit jobs;
+
+              name = "${name}-cache";
 
               patchPhase = ''
                 runHook prePatch
 
-                ${lib.optionalString (lib.pathExists duneLock) ''
-                  rm -rf ${lockDir}
-                  cp -rL ${patchedLock} ${lockDir}
-                ''}
+                cp -rL ${patchedLock} ${lockDir}
 
                 runHook postPatch
               '';
 
               # Create an sourceset of all `dune-*` files and `dune.lock` Since
               # we're building only packages, we don't need the sources.
-              src =
-                with lib.fileset;
-                toSource rec {
-                  root = src;
-                  fileset = union duneLock (
-                    fileFilter (
-                      file:
-                      lib.elem file.name [
-                        "dune-project"
-                        "dune-workspace"
-                      ]
-                    ) root
-                  );
-                };
+              src = lib.fileset.toSource rec {
+                root = src;
+                fileset = lib.fileset.fileFilter (
+                  file:
+                  lib.elem file.name [
+                    "dune-project"
+                    "dune-workspace"
+                  ]
+                ) root;
+              };
 
               target = "@pkg-install";
 
@@ -337,7 +328,6 @@
               '';
             };
           in
-
           {
             strictDeps = true;
             passthru = args.passthru or { } // {
@@ -345,7 +335,7 @@
                 patchedLock
                 lockDir
                 lockFiles
-                duneBuildCache
+                duneCache
                 ;
             };
 
@@ -353,9 +343,6 @@
               dune
               writableTmpDirAsHomeHook
             ];
-
-            # NOMERGE
-            DUNE_JOBS = 3;
 
             patchPhase =
               args.patchPhase or ''
@@ -371,7 +358,7 @@
                     # to work. - shun 2026/03/27
                     ''
                       mkdir -p _build
-                      cp -a ${duneBuildCache}/. _build
+                      cp -a ${duneCache}/. _build
                       chmod -R u+w _build
                     ''
                   }
@@ -381,7 +368,7 @@
               '';
 
             buildPhase =
-              # NOMERGE short sandbox
+              # NOMERGE short
               args.buildPhase or ''
                 runHook preBuild
 
