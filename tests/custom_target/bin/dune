@@ -1,0 +1,3 @@
+(executable
+ (public_name custom_target)
+ (name main))
