@@ -4,8 +4,9 @@ on:
   pull_request:
   merge_group:
   push:
-    branches:
-      - master
+
+permissions:
+  contents: read
 
 jobs:
   nocommit:
@@ -32,26 +33,15 @@ jobs:
       - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c
         if: github.repository_owner == 'anteriorcore'
         with:
-          name: anterior-private
-          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          name: ${{ vars.CACHIX_CACHE_NAME }}
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - run: nix run .#nix-flake-check-changed
 
   nix-flake-health:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
-        with:
-          key: "nix-eval-cache-${{ runner.os }}-${{ runner.arch }}"
-          path: "~/.cache/nix"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe
-      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c
-        if: github.repository_owner == 'anteriorcore'
-        with:
-          name: anterior-private
-          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - run: nix flake show
       - run: nix flake lock --no-update-lock-file
       - run: nix flake check --no-build
