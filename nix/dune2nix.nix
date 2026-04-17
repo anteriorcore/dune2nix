@@ -322,6 +322,7 @@
               installPhase = ''
                 runHook preInstall
 
+                rm _build/trace.csexp
                 mv _build $out
 
                 runHook postInstall
