@@ -2,11 +2,12 @@
 {
   flake.lib.dune2nix =
     {
-      lib,
-      newScope,
-      fetchurl,
-      linkFarm,
       dune,
+      fetchurl,
+      lib,
+      linkFarm,
+      newScope,
+      opam,
       stdenv,
       writableTmpDirAsHomeHook,
       writeText,
@@ -297,22 +298,26 @@
               inherit patchedLock lockDir lockFiles;
             };
 
+            # Almost every package installs ocaml-compiler.  If you don’t
+            # provide zstd you get this message during the configure phase:
+            #
+            #   configure: WARNING: zstd library not found
+            #   configure: WARNING: compressed compilation artefacts not supported
+            #
+            # And if you don’t provide opam, you get:
+            #
+            #   Warning: Logs for package ocaml-compiler
+            #   tools/opam/process.sh: line 101: opam: command not found
+            #
+            # Might as well just provide them by default.
             nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
               dune
+              opam
               # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
             ];
 
-            buildInputs = [
-              # Almost every package installs ocaml-compiler, and if you don’t
-              # provide zstd you get this message during the configure phase:
-              #
-              #   configure: WARNING: zstd library not found
-              #   configure: WARNING: compressed compilation artefacts not supported
-              #
-              # Might as well just provide it by default.
-              zstd
-            ];
+            buildInputs = [ zstd ];
 
             patchPhase = ''
               runHook prePatch
