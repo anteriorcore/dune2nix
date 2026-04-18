@@ -313,10 +313,12 @@
               runHook postPatch
             '';
 
+            duneBuildFlags = [ "--display=short" ];
+
             buildPhase = ''
               runHook preBuild
 
-              dune build --display=short ${target} ${flags}
+              dune build $duneBuildFlags ${target} ${flags}
 
               runHook postBuild
             '';
