@@ -44,29 +44,16 @@
 
       packages = { inherit (inputs'.tools.packages) nix-flake-check-changed nix-grep-to-build; };
 
-      legacyPackages.tests =
-        let
-          go =
-            path: attrs:
-            lib.concatMapAttrs (
-              k: v:
-              let
-                curr = path ++ [ k ];
-              in
-              if lib.isAttrs v && !lib.isDerivation v then
-                go curr v
-              else
-                { "${lib.concatStringsSep "/" curr}" = v; }
-            ) attrs;
-        in
-        go [ ] (
-          lib.packagesFromDirectoryRecursive {
-            callPackage = lib.callPackageWith (pkgs // { inherit dune2nix; });
-            directory = ../tests;
-          }
-        );
+      legacyPackages.tests = lib.packagesFromDirectoryRecursive {
+        callPackage = lib.callPackageWith (pkgs // { inherit dune2nix; });
+        directory = ../tests;
+      };
 
       # Build all tests as a check.
-      checks = lib.mapAttrs' (k: v: lib.nameValuePair "build-${k}" v) config.legacyPackages.tests;
+      checks = builtins.listToAttrs (
+        lib.mapAttrsToListRecursiveCond (_: v: !(lib.isDerivation v)) (
+          p: lib.nameValuePair "build-${(lib.concatStringsSep "/" p)}"
+        ) config.legacyPackages.tests
+      );
     };
 }
