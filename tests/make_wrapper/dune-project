@@ -1,0 +1,9 @@
+(lang dune 3.21)
+
+(name make_wrapper)
+
+(generate_opam_files false)
+
+(package
+ (name make_wrapper)
+ (depends (ocaml (= 5.5.0)) relocatable))
