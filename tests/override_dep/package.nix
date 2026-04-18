@@ -7,6 +7,7 @@
 dune2nix.mkDuneProject {
   src = ./.;
   doCheck = true;
+  enableIncrementalBuild = true; # NOMERGE
   srcOverrides =
     final: prev:
     lib.concatMapAttrs (

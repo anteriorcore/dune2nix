@@ -11,6 +11,7 @@
       writableTmpDirAsHomeHook,
       writeText,
       overrideScope ? _: _: { },
+      perl,
     }:
     let
       inherit (self.lib) sexp;
@@ -322,7 +323,18 @@
               installPhase = ''
                 runHook preInstall
 
+                # Trace contains info like user's PATH, the absolute dir of the
+                # project, etc. We definitely don't need it and removing to
+                # ensure reproducibility.
                 rm _build/trace.csexp
+                # NOMERGE are we sure?
+                rm _build/.digest-db
+
+                # NOMERGE replace all the references to abs dir
+                grep -rl "$TMPDIR" _build | while read -r file; do
+                  ${lib.getExe perl} -pi -e "s|\Q$TMPDIR\E|$SENTINEL|g" "$file"
+                done
+
                 mv _build $out
 
                 runHook postInstall
@@ -344,6 +356,9 @@
               dune
               writableTmpDirAsHomeHook
             ];
+            # NOMERGE random sentinel that matches the length of TMPDIR set by
+            # nix (e.g. /nix/var/nix/builds/nix-29429-3873406365)
+            SENTINEL = "/dun/2ni/xaa/builds/nix-29772-8484509973";
 
             patchPhase =
               args.patchPhase or ''
@@ -361,6 +376,10 @@
                       mkdir -p _build
                       cp -a ${duneCache}/. _build
                       chmod -R u+w _build
+
+                      grep -rl "$SENTINEL" _build | while read -r file; do
+                        ${lib.getExe perl} -pi -e "s|\Q$SENTINEL\E|$TMPDIR|g" "$file"
+                      done
                     ''
                   }
                 ''}
@@ -369,11 +388,10 @@
               '';
 
             buildPhase =
-              # NOMERGE short
               args.buildPhase or ''
                 runHook preBuild
 
-                dune build --display=verbose ${target} ${jobsFlag}
+                dune build --display=short ${target} ${jobsFlag}
 
                 runHook postBuild
               '';
