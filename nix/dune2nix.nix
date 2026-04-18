@@ -292,7 +292,13 @@
               runHook postPatch
             '';
 
-            duneBuildFlags = [ "--display=short" ];
+            duneBuildFlags = [
+              "--error-reporting=twice"
+              "--always-show-command-line"
+              "--action-stdout-on-success=print"
+              "--action-stderr-on-success=print"
+              "--display=verbose"
+            ];
 
             # The build context. Dune supports "default" and Opam switch context,
             # but I'm not convinced that we should support the latter: if you're
