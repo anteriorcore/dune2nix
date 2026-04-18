@@ -53,27 +53,6 @@
             srcOverrides ? _: _: { },
             duneWorkspace ? src + "/dune-workspace",
 
-            # The build context. Dune supports "default" and Opam switch context,
-            # but I'm not convinced that we should support the latter: if you're
-            # using Opam switch (not managing package via Dune), you probably
-            # don't want to use this library anyways.
-            #
-            # One situation where this might not be true, is when you manage
-            # Dune via Opam, and rest of the packages via Dune. But that's also
-            # unlikely because the user of this library would use Nix (via
-            # devshell) to manage Dune.
-            #
-            # Devex would also be terrible: the user would have to commit the
-            # Opam export file (generated via `opam export --freeze --full`),
-            # which is extremely hard to keep in sync across the team, because
-            # of Opam switch's impure nature.
-            #
-            # I will leave the door open, but I will not spend my complexity
-            # budget here.
-            #
-            # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
-            context ? "default",
-
             # Conventional flag used by many builders in nixpkgs including Dune.
             # In Dune, it's used to set `-j` (jobs) flag.
             enableParallelBuilding ? true,
@@ -85,7 +64,9 @@
             lockDir =
               let
                 parsed = sexp.parseFile duneWorkspace;
-                ctx = lib.optionals (sexp.has [ "context" ] parsed) (sexp.get [ "context" context ] parsed);
+                ctx = lib.optionals (sexp.has [ "context" ] parsed) (
+                  sexp.get [ "context" finalAttrs.context ] parsed
+                );
               in
               if (lib.pathExists duneWorkspace && sexp.has [ "lock_dir" ] ctx) then
                 sexp.scalar [ "lock_dir" ] ctx
@@ -274,20 +255,6 @@
             );
             patchedLock = linkFarm lockDir lockFiles;
 
-            # For some reason, `dune build` and `dune runtest` don't accept the
-            # `--context` flag. Instead, you specify the build target directory
-            # (`_build/${context}`) -- I _hope_ this works, but I wouldn't be
-            # surprised at all even if this suddenly breaks. As I mentioned
-            # above context support is best-effort: it's very possible that I
-            # rip this out for a very minor issue.
-            #
-            # build:
-            # https://github.com/ocaml/dune/issues/9672
-            #
-            # runtest:
-            # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
-            target = "_build/${context}";
-
             # Flags used for `dune build` and `runtest`.
             flags = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
           in
@@ -327,10 +294,45 @@
 
             duneBuildFlags = [ "--display=short" ];
 
+            # The build context. Dune supports "default" and Opam switch context,
+            # but I'm not convinced that we should support the latter: if you're
+            # using Opam switch (not managing package via Dune), you probably
+            # don't want to use this library anyways.
+            #
+            # One situation where this might not be true, is when you manage
+            # Dune via Opam, and rest of the packages via Dune. But that's also
+            # unlikely because the user of this library would use Nix (via
+            # devshell) to manage Dune.
+            #
+            # Devex would also be terrible: the user would have to commit the
+            # Opam export file (generated via `opam export --freeze --full`),
+            # which is extremely hard to keep in sync across the team, because
+            # of Opam switch's impure nature.
+            #
+            # I will leave the door open, but I will not spend my complexity
+            # budget here.
+            #
+            # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
+            context = args.context or "default";
+
+            # For some reason, `dune build` and `dune runtest` don't accept the
+            # `--context` flag. Instead, you specify the build target directory
+            # (`_build/${context}`) -- I _hope_ this works, but I wouldn't be
+            # surprised at all even if this suddenly breaks. As I mentioned
+            # above context support is best-effort: it's very possible that I
+            # rip this out for a very minor issue.
+            #
+            # build:
+            # https://github.com/ocaml/dune/issues/9672
+            #
+            # runtest:
+            # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
+            target = args.target or "_build/${finalAttrs.context}";
+
             buildPhase = ''
               runHook preBuild
 
-              dune build $duneBuildFlags ${target} ${flags}
+              dune build $duneBuildFlags $target ${flags}
 
               runHook postBuild
             '';
@@ -338,7 +340,7 @@
             installPhase = ''
               runHook preInstall
 
-              dune install --context ${context} --prefix $out
+              dune install --context $context --prefix $out
 
               runHook postInstall
             '';
@@ -346,7 +348,7 @@
             checkPhase = ''
               runHook preCheck
 
-              dune runtest ${target} ${flags}
+              dune runtest $target ${flags}
 
               runHook postCheck
             '';
