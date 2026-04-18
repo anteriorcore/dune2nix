@@ -218,7 +218,7 @@
                   # Convert a parsed lock file in sexp mode to an attrset containing
                   # only its source(s), all as attrsets:
                   #
-                  # [ .... ["source" ["fetch" ...] ["extra_sources ["a" ..] ["b" ..]]]
+                  # [ .... ["source" ["fetch" ...]] ["extra_sources ["a" ..] ["b" ..]]]
                   #
                   # =>
                   #
