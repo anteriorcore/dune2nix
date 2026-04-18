@@ -10,6 +10,7 @@
       stdenv,
       writableTmpDirAsHomeHook,
       writeText,
+      zstd,
       overrideScope ? _: _: { },
     }:
     let
@@ -300,6 +301,17 @@
               dune
               # Dune wants to write in ~/.cache
               writableTmpDirAsHomeHook
+            ];
+
+            buildInputs = [
+              # Almost every package installs ocaml-compiler, and if you don’t
+              # provide zstd you get this message during the configure phase:
+              #
+              #   configure: WARNING: zstd library not found
+              #   configure: WARNING: compressed compilation artefacts not supported
+              #
+              # Might as well just provide it by default.
+              zstd
             ];
 
             patchPhase = ''
