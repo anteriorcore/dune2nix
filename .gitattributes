@@ -1,1 +1,2 @@
-**/dune.lock/**  linguist-generated=true
+*.pkg  linguist-generated=true
+lock.dune linguist-generated=true
