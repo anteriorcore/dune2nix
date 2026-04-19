@@ -1,0 +1,23 @@
+(version 1.0.1)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs} @install))))))
+
+(depends
+ (all_platforms
+  (dune bos fpath ptime logs digestif mirage-crypto x509 ocaml ohex)))
+
+(depexts
+ ((ca_root_nss)
+  (= %{os} freebsd)))
+
+(source
+ (fetch
+  (url
+   https://github.com/mirage/ca-certs/releases/download/v1.0.1/ca-certs-1.0.1.tbz)
+  (checksum
+   sha512=cb2e2c509531a4824b035762e57217143d7eec7bc57434845b65850144051344b4ed27d61972b6580b83d2d012766919c101a0274fb6218c4e4f65b45d3c79fa)))

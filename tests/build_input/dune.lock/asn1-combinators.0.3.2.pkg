@@ -1,0 +1,19 @@
+(version 0.3.2)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs}))))))
+
+(depends
+ (all_platforms
+  (ocaml dune ptime)))
+
+(source
+ (fetch
+  (url
+   https://github.com/mirleft/ocaml-asn1-combinators/releases/download/v0.3.2/asn1-combinators-0.3.2.tbz)
+  (checksum
+   sha512=8ca5a9dfa080cd2e6c3ef05a232e90916df921b09e8445728c6b46438d39056ccb8cd61325f3858490f032a17620a0de17f9d910fd8f0cabe961b02bc76a2eca)))

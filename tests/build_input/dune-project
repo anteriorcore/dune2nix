@@ -1,0 +1,15 @@
+(lang dune 3.21)
+
+(name build_input)
+
+(generate_opam_files false)
+
+(package
+ (name build_input)
+ (depends
+  ocaml
+  ca-certs
+  cohttp-eio
+  eio_main
+  tls-eio
+  ))
