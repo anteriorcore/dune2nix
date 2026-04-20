@@ -270,7 +270,7 @@
               writableTmpDirAsHomeHook
             ];
 
-            buildInputs = [
+            buildInputs = args.buildInputs or [ ] ++ [
               # Almost every package installs ocaml-compiler, and if you don’t
               # provide zstd you get this message during the configure phase:
               #

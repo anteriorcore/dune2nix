@@ -1,0 +1,26 @@
+(version 1.3)
+
+(build
+ (all_platforms
+  ((action (run dune build -p %{pkg-self:name} -j %{jobs} @install)))))
+
+(depends
+ (all_platforms
+  (dune
+   ocaml
+   bigstringaf
+   cstruct
+   lwt-dllist
+   optint
+   psq
+   fmt
+   hmap
+   domain-local-await
+   mtime)))
+
+(source
+ (fetch
+  (url
+   https://github.com/ocaml-multicore/eio/releases/download/v1.3/eio-1.3.tbz)
+  (checksum
+   sha512=46e8f817f32c3316e7f35835a136ad177a295b3306351eb2efa2386482b0169a5b19ed2925b32da2a1f10d40f083fe3d588dd401908f9fec6e4a44cd68535204)))

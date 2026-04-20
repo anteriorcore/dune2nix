@@ -1,0 +1,11 @@
+(executable
+ (public_name build_inputs)
+ (name main)
+ (libraries
+  ca-certs
+  cohttp-eio
+  eio_main
+  logs.fmt
+  logs.threaded
+  mirage-crypto-rng.unix
+  tls-eio))
