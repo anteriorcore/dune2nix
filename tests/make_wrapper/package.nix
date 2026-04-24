@@ -10,6 +10,7 @@ dune2nix.mkDuneProject {
     diffutils
     makeWrapper
   ];
+  separateDepsDeriv = true;
   postInstall = ''
     for b in $out/bin/*; do
       wrapProgram "$b" --add-flag "hard-coded using makeWrapper"

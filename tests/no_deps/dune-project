@@ -20,7 +20,7 @@
  (name no_deps)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml)
+ (depends (ocaml (= 5.5.0)) relocatable)
  (tags
   ("add topics" "to describe" your project)))
 

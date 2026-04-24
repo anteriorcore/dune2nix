@@ -7,7 +7,8 @@
 (package
  (name build_input)
  (depends
-  ocaml
+  (ocaml (= 5.5.0))
+  relocatable
   ca-certs
   cohttp-eio
   eio_main
