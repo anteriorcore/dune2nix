@@ -298,6 +298,7 @@
               "--action-stdout-on-success=print"
               "--action-stderr-on-success=print"
               "--display=verbose"
+              "--stop-on-first-error"
             ];
 
             # The build context. Dune supports "default" and Opam switch context,
