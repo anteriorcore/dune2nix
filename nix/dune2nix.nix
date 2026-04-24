@@ -276,6 +276,14 @@
             # as an individual derivation, but that's pretty difficult and this
             # is the compromise we make now, though it will us pretty far. -
             # shun 2026-03
+            #
+            #   - $out/_build is the _build directory
+            #
+            #   - $out/cache is the (“global”) cache
+            #
+            # We initially tried to use a separate output for the cache
+            # (‘cache’) but it caused problems with circular store references on
+            # certain rachitectures.  This is simpler and works just as well.
             duneDeps = stdenv.mkDerivation (
               {
                 name = "${finalAttrs.name}-deps";
@@ -307,6 +315,7 @@
                 target = "@pkg-install";
 
                 buildPhase = ''
+                  export DUNE_CACHE_ROOT="$out/cache"
                   dune build $duneBuildFlags ${jobsFlag} $target
                 '';
 
@@ -328,7 +337,8 @@
                 installPhase = ''
                   runHook preInstall
 
-                  cp -r _build $out
+                  mkdir -p $out/cache
+                  cp -r _build $out/
 
                   runHook postInstall
                 '';
@@ -352,6 +362,8 @@
                 "depsTargetTarget"
                 "depsTargetTargetPropagated"
 
+                "DUNE_CACHE"
+                "DUNE_CACHE_STORAGE_MODE"
                 "DUNE_TRACE"
                 "context"
                 "duneBuildFlags"
@@ -361,6 +373,12 @@
           in
           {
             strictDeps = true;
+
+            # The default is "hardlink" which is a bad choice for Nix: it’s
+            # likely the build directory lives on a different drive from the nix
+            # store.  Strongly recommended to leave this as-is.
+            DUNE_CACHE_STORAGE_MODE = args.DUNE_CACHE_STORAGE_MODE or "copy";
+
             passthru = args.passthru or { } // {
               inherit
                 patchedLock
@@ -383,25 +401,39 @@
               ]
               ++ lib.optionals (!finalAttrs.dontDuneCheckNoCacheMiss) [ jq ];
 
+            # Set up the cache in case the program wants to use it.
+            duneConfigureCachePhase = ''
+              runHook preDuneConfigureCache
+
+              export DUNE_CACHE_ROOT="$cache"
+
+              runHook postDuneConfigureCache
+            '';
+
+            prePhases = args.prePhases or [ ] ++ [ "duneConfigureCachePhase" ];
+
             patchPhase =
               args.patchPhase or ''
                 runHook prePatch
 
-                ${lib.optionalString (lib.pathExists duneLock) ''
+              ''
+              + lib.optionalString (lib.pathExists duneLock) (
+                ''
                   rm -rf ${lockDir}
                   cp -rL ${patchedLock} ${lockDir}
 
-                  ${lib.optionalString separateDepsDeriv
-                    # I'm not sure what exactly but Dune cares about some file
-                    # metadata. Combination of `cp -a` and `chmod -R u+w` seems
-                    # to work. - shun 2026-03
-                    ''
-                      mkdir -p _build
-                      cp -a ${duneDeps}/. _build
-                      chmod -R u+w _build
-                    ''
-                  }
-                ''}
+                ''
+                + lib.optionalString separateDepsDeriv ''
+
+                  # I'm not sure what exactly but Dune cares about some file
+                  # metadata. Combination of `cp -a` and `chmod -R u+w` seems
+                  # to work. - shun 2026-03
+                  cp -a ${duneDeps}/_build .
+                  cp -a ${duneDeps}/cache $cache
+                  chmod -R u+w $cache _build
+                ''
+              )
+              + ''
 
                 runHook postPatch
               '';
@@ -484,6 +516,9 @@
               # referenced, but it can be very useful for debugging issues or
               # reusing cache from other derivations when desired.
               "build"
+              # This is the global build cache, which is related to, but
+              # different from, the build directory.  Same rationale as above.
+              "cache"
             ];
 
             checkPhase =
@@ -530,12 +565,17 @@
               fi
             '';
 
+            # Also ensure there is at least some directory in the $cache output,
+            # if specified.
             installBuildDirsPhase = ''
               runHook preInstallBuildDirs
 
               for target in $outputs; do
                 if [[ "$target" == build && -d _build && ! -a $build ]]; then
                   cp -r _build $build
+                fi
+                if [[ "$target" == cache ]]; then
+                  mkdir -p $cache
                 fi
               done
 
