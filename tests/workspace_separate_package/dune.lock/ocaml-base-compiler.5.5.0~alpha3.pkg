@@ -1,0 +1,6 @@
+(version 5.5.0~alpha3)
+
+(depends
+ (all_platforms (ocaml-compiler)))
+
+(avoid)

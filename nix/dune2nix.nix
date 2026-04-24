@@ -4,9 +4,10 @@
     {
       lib,
       newScope,
+      dune,
       fetchurl,
       linkFarm,
-      dune,
+      jq,
       stdenv,
       writableTmpDirAsHomeHook,
       writeText,
@@ -14,6 +15,8 @@
       overrideScope ? _: _: { },
     }:
     let
+      # Like lib.attrsets.getAttrs but skip missing names
+      getAttrsSafe = names: a: lib.getAttrs (builtins.filter (n: builtins.hasAttr n a) names) a;
       inherit (self.lib) sexp;
 
       # Creates a non-executable derivation that builds all projects in a
@@ -49,13 +52,23 @@
         extendDrvArgs =
           finalAttrs:
           {
+            name,
             src,
             srcOverrides ? _: _: { },
             duneWorkspace ? src + "/dune-workspace",
 
-            # Conventional flag used by many builders in nixpkgs including Dune.
-            # In Dune, it's used to set `-j` (jobs) flag.
-            enableParallelBuilding ? true,
+            # Create a separate derivation with only the dependencies (target
+            # ‘@pkg-install’).  Caches the built dependencies and only rebuilds
+            # when there's a change in `dune-*` files.  Use with caution: all
+            # dependencies, including ocamlc, must be relocatable.  The ocaml
+            # compiler only became relocatable with 5.5.0.
+            separateDepsDeriv ? false,
+
+            # Concurrency is part of the cache key. When reusing dependency
+            # build artifacts from a separate derivation, set concurrency to 2
+            # to make the cache key stable.  2 is the highest safe
+            # parallelization count we could think of.
+            jobs ? if separateDepsDeriv then 2 else "$NIX_BUILD_CORES",
             ...
           }@args:
           let
@@ -256,50 +269,142 @@
             patchedLock = linkFarm lockDir lockFiles;
 
             # Flags used for `dune build` and `runtest`.
-            flags = lib.optionalString enableParallelBuilding "-j $NIX_BUILD_CORES";
+            jobsFlag = "-j ${toString jobs}";
+
+            # Derivation with only the dependencies built, for reuse during
+            # builds of the application. Ideally we'd want to build each package
+            # as an individual derivation, but that's pretty difficult and this
+            # is the compromise we make now, though it will us pretty far. -
+            # shun 2026-03
+            duneDeps = stdenv.mkDerivation (
+              {
+                name = "${finalAttrs.name}-deps";
+
+                patchPhase = ''
+                  runHook prePatch
+
+                  cp -rL ${finalAttrs.passthru.patchedLock} ${finalAttrs.passthru.lockDir}
+
+                  runHook postPatch
+                '';
+
+                # Since we're only building the dependencies, we don't need the
+                # source. _Technically_ we need to collect all the `dune-*`
+                # files in the workspace, but it's quite tedious.  We don’t feel
+                # feel like implementing that, so we're skipping on this for
+                # now.
+                src = lib.fileset.toSource {
+                  root = finalAttrs.src;
+                  fileset = lib.fileset.fileFilter (
+                    file:
+                    lib.elem file.name [
+                      "dune-project"
+                      "dune-workspace"
+                    ]
+                  ) finalAttrs.src;
+                };
+
+                target = "@pkg-install";
+
+                buildPhase = ''
+                  dune build $duneBuildFlags ${jobsFlag} $target
+                '';
+
+                buildInputs = lib.unique (
+                  finalAttrs.buildInputs or [ ]
+                  ++ [
+                    # Almost every package installs ocaml-compiler, and if you
+                    # don’t provide zstd you get this message during the configure
+                    # phase:
+                    #
+                    #   configure: WARNING: zstd library not found
+                    #   configure: WARNING: compressed compilation artefacts not supported
+                    #
+                    # Might as well just provide it by default.
+                    zstd
+                  ]
+                );
+
+                installPhase = ''
+                  runHook preInstall
+
+                  cp -r _build $out
+
+                  runHook postInstall
+                '';
+
+                # The dependencies shouldn’t be tampered with: just build and
+                # copy.  Fixing up is left to the final derivation.
+                dontFixup = true;
+              }
+              // getAttrsSafe [
+                "depsBuildBuild"
+                "depsBuildBuildPropagated"
+                "nativeBuildInputs"
+                "propagatedNativeBuildInputs"
+                "defaultNativeBuildInputs"
+                "depsBuildTarget"
+                "depsBuildTargetPropagated"
+                "depsHostHost"
+                "depsHostHostPropagated"
+                "propagatedBuildInputs"
+                "defaultBuildInputs"
+                "depsTargetTarget"
+                "depsTargetTargetPropagated"
+
+                "DUNE_TRACE"
+                "context"
+                "duneBuildFlags"
+                "strictDeps"
+              ] finalAttrs
+            );
           in
           {
             strictDeps = true;
             passthru = args.passthru or { } // {
-              inherit patchedLock lockDir lockFiles;
+              inherit
+                patchedLock
+                lockDir
+                lockFiles
+                duneDeps
+                ;
             };
 
-            nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
-              dune
-              # Dune wants to write in ~/.cache
-              writableTmpDirAsHomeHook
-            ];
+            # zstd is needed for ocaml, but of course not if that’s built in a
+            # separate derivation.
+            buildInputs = args.buildInputs or [ ] ++ lib.optionals (!separateDepsDeriv) [ zstd ];
 
-            buildInputs = args.buildInputs or [ ] ++ [
-              # Almost every package installs ocaml-compiler, and if you don’t
-              # provide zstd you get this message during the configure phase:
-              #
-              #   configure: WARNING: zstd library not found
-              #   configure: WARNING: compressed compilation artefacts not supported
-              #
-              # Might as well just provide it by default.
-              zstd
-            ];
+            nativeBuildInputs =
+              (args.nativeBuildInputs or [ ])
+              ++ [
+                dune
+                # Dune wants to write in ~/.cache
+                writableTmpDirAsHomeHook
+              ]
+              ++ lib.optionals (!finalAttrs.dontDuneCheckNoCacheMiss) [ jq ];
 
-            patchPhase = ''
-              runHook prePatch
+            patchPhase =
+              args.patchPhase or ''
+                runHook prePatch
 
-              ${lib.optionalString (lib.pathExists duneLock) ''
-                rm -rf ${lockDir}
-                cp -rL ${patchedLock} ${lockDir}
-              ''}
+                ${lib.optionalString (lib.pathExists duneLock) ''
+                  rm -rf ${lockDir}
+                  cp -rL ${patchedLock} ${lockDir}
 
-              runHook postPatch
-            '';
+                  ${lib.optionalString separateDepsDeriv
+                    # I'm not sure what exactly but Dune cares about some file
+                    # metadata. Combination of `cp -a` and `chmod -R u+w` seems
+                    # to work. - shun 2026-03
+                    ''
+                      mkdir -p _build
+                      cp -a ${duneDeps}/. _build
+                      chmod -R u+w _build
+                    ''
+                  }
+                ''}
 
-            duneBuildFlags = [
-              "--error-reporting=twice"
-              "--always-show-command-line"
-              "--action-stdout-on-success=print"
-              "--action-stderr-on-success=print"
-              "--display=verbose"
-              "--stop-on-first-error"
-            ];
+                runHook postPatch
+              '';
 
             # The build context. Dune supports "default" and Opam switch context,
             # but I'm not convinced that we should support the latter: if you're
@@ -322,6 +427,10 @@
             # https://dune.readthedocs.io/en/stable/reference/dune-workspace/context.html
             context = args.context or "default";
 
+            # The target to build. It defaults to "_build/${context}", but can
+            # pass [aliases](https://dune.readthedocs.io/en/latest/reference/aliases.html)
+            # like `@pkg-install`.
+            #
             # For some reason, `dune build` and `dune runtest` don't accept the
             # `--context` flag. Instead, you specify the build target directory
             # (`_build/${context}`) -- I _hope_ this works, but I wouldn't be
@@ -336,29 +445,107 @@
             # https://github.com/ocaml/dune/blob/33b6ab730ce2bf0a78aaac116d7e95db6c71c45c/bin/runtest.ml#L29
             target = args.target or "_build/${finalAttrs.context}";
 
-            buildPhase = ''
-              runHook preBuild
+            duneBuildFlags = [
+              "--error-reporting=twice"
+              "--always-show-command-line"
+              "--action-stdout-on-success=print"
+              "--action-stderr-on-success=print"
+              "--display=verbose"
+              "--stop-on-first-error"
+              # Not 100% sure if this is necessary but the wording in the docs
+              # makes it sound slike it’s an important flag for ensuring
+              # determinism in cache handling.  That’s extremely relevant to
+              # Nix, particularly when using separate dependency derivations, so
+              # let’s enable it, to be safe.
+              "--wait-for-filesystem-clock"
+            ];
 
-              dune build $duneBuildFlags $target ${flags}
+            buildPhase =
+              args.buildPhase or ''
+                runHook preBuild
 
-              runHook postBuild
+                if [[ -z "''${dontDuneCheckNoCacheMiss-}" ]]; then
+                  # Semantics of DUNE_TRACE envvar are a bit complicated: either
+                  # comma separated, XOR +/- alternating.
+                  if [[ "''${DUNE_TRACE-}" == *,* ]]; then
+                    export DUNE_TRACE="$DUNE_TRACE,cache"
+                  else
+                    export DUNE_TRACE="''${DUNE_TRACE-}+cache"
+                  fi
+                fi
+                dune build $duneBuildFlags $target ${jobsFlag}
+
+                runHook postBuild
+              '';
+
+            outputs = [
+              "out"
+              # This will get garbage collected unless it’s explicitly
+              # referenced, but it can be very useful for debugging issues or
+              # reusing cache from other derivations when desired.
+              "build"
+            ];
+
+            checkPhase =
+              args.checkPhase or ''
+                runHook preCheck
+
+                dune runtest $target ${jobsFlag}
+
+                runHook postCheck
+              '';
+
+            installPhase =
+              args.installPhase or ''
+                runHook preInstall
+
+                dune install --context $context --prefix $out
+
+                runHook postInstall
+              '';
+
+            dontDuneCheckNoCacheMiss = false;
+            duneCheckNoCacheMissPhase = ''
+              if [[ -z "''${dontDuneCheckNoCacheMiss-}" ]]; then
+                outfile=dune-cache-misses.jsonl
+                dune trace cat --trace-file _build/trace.csexp \
+                  | jq -c 'select(.cat == "cache" and .name == "workspace_local_miss" and (.args.reason | startswith("rule or dependencies changed")))' \
+                  > $outfile
+                if [[ -s $outfile ]]; then
+                  cat $outfile
+                  >&2 cat <<'EOF'
+
+
+              ERROR: Dune had cache misses during build.  This means dune2nix
+              was not able to set up an environment where dune can reuse the
+              cache it generated, itself.  The failure mode is that builds
+              succeed, but become very slow, as every single derivation will
+              require a rebuild of all dependencies.  If you know what you're
+              doing, you can set dontDuneCheckNoCacheMiss to 'true' on this
+              derivation.
+
+              EOF
+                  exit 1
+                fi
+              fi
             '';
 
-            installPhase = ''
-              runHook preInstall
+            installBuildDirsPhase = ''
+              runHook preInstallBuildDirs
 
-              dune install --context $context --prefix $out
+              for target in $outputs; do
+                if [[ "$target" == build && -d _build && ! -a $build ]]; then
+                  cp -r _build $build
+                fi
+              done
 
-              runHook postInstall
+              runHook postInstallBuildDir
             '';
 
-            checkPhase = ''
-              runHook preCheck
-
-              dune runtest $target ${flags}
-
-              runHook postCheck
-            '';
+            preFixupPhases = args.preFixupPhases or [ ] ++ [
+              "installBuildDirsPhase"
+              "duneCheckNoCacheMissPhase"
+            ];
           };
 
         excludeDrvArgNames = [
@@ -368,6 +555,7 @@
           "context"
           "enableParallelBuilding"
           "srcOverrides"
+          "separateDepsDeriv"
         ];
       };
 
