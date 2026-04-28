@@ -29,7 +29,7 @@ jobs:
           key: "nix-eval-cache-${{ runner.os }}-${{ runner.arch }}"
           path: "~/.cache/nix"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b
+      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f
       - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c
         if: github.repository_owner == 'anteriorcore'
         with:
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b
+      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f
       - run: nix flake show
       - run: nix flake lock --no-update-lock-file
       - run: nix flake check --no-build
