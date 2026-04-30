@@ -1,0 +1,3 @@
+(executable
+ (public_name build_outputs)
+ (name main))

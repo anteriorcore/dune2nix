@@ -379,6 +379,8 @@
             # store.  Strongly recommended to leave this as-is.
             DUNE_CACHE_STORAGE_MODE = args.DUNE_CACHE_STORAGE_MODE or "copy";
 
+            inherit separateDepsDeriv;
+
             passthru = args.passthru or { } // {
               inherit
                 patchedLock
@@ -390,7 +392,7 @@
 
             # zstd is needed for ocaml, but of course not if that’s built in a
             # separate derivation.
-            buildInputs = args.buildInputs or [ ] ++ lib.optionals (!separateDepsDeriv) [ zstd ];
+            buildInputs = args.buildInputs or [ ] ++ lib.optionals (!finalAttrs.separateDepsDeriv) [ zstd ];
 
             nativeBuildInputs =
               (args.nativeBuildInputs or [ ])
@@ -405,8 +407,18 @@
             duneConfigureCachePhase = ''
               runHook preDuneConfigureCache
 
-              export DUNE_CACHE_ROOT="$cache"
-
+            ''
+            + (
+              if finalAttrs.duneIncludeBuildOutputs then
+                ''
+                  export DUNE_CACHE_ROOT="$cache"
+                ''
+              else
+                ''
+                  export DUNE_CACHE_ROOT="$(mktemp -d)"
+                ''
+            )
+            + ''
               runHook postDuneConfigureCache
             '';
 
@@ -423,14 +435,14 @@
                   cp -rL ${patchedLock} ${lockDir}
 
                 ''
-                + lib.optionalString separateDepsDeriv ''
+                + lib.optionalString finalAttrs.separateDepsDeriv ''
 
                   # I'm not sure what exactly but Dune cares about some file
                   # metadata. Combination of `cp -a` and `chmod -R u+w` seems
                   # to work. - shun 2026-03
-                  cp -a ${duneDeps}/_build .
-                  cp -a ${duneDeps}/cache $cache
-                  chmod -R u+w $cache _build
+                  cp -a ${finalAttrs.passthru.duneDeps}/_build .
+                  cp -a ${finalAttrs.passthru.duneDeps}/cache $DUNE_CACHE_ROOT
+                  chmod -R u+w $DUNE_CACHE_ROOT _build
                 ''
               )
               + ''
@@ -510,14 +522,16 @@
                 runHook postBuild
               '';
 
+            # Set to true to include _build as build and the global cache as
+            # cache outputs.  Useful for debugging, and they’re easily garbage
+            # collected, but they can grow quite large which can slow down
+            # builds.
+            duneIncludeBuildOutputs = args.duneIncludeBuildOutputs or false;
             outputs = [
               "out"
-              # This will get garbage collected unless it’s explicitly
-              # referenced, but it can be very useful for debugging issues or
-              # reusing cache from other derivations when desired.
+            ]
+            ++ lib.optionals finalAttrs.duneIncludeBuildOutputs [
               "build"
-              # This is the global build cache, which is related to, but
-              # different from, the build directory.  Same rationale as above.
               "cache"
             ];
 
