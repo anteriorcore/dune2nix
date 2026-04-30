@@ -1,6 +1,3 @@
 { dune2nix }:
 
-dune2nix.mkDuneProject {
-  src = ./.;
-  separateDepsDeriv = true;
-}
+dune2nix.mkDuneProject { src = ./.; }
