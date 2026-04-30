@@ -34,6 +34,14 @@
     };
     # keep-sorted end
   };
+
+  nixConfig = {
+    extra-substituters = [ "https://anterior-public.cachix.org" ];
+    extra-trusted-public-keys = [
+      "anterior-public.cachix.org-1:uLNXTMrqtMCiIJ4lYu47MGrbVPpyploI6J2y5Yre9es="
+    ];
+  };
+
   outputs =
     { flake-parts, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
