@@ -3,5 +3,4 @@
 dune2nix.mkDuneWorkspace {
   name = "workspace";
   src = ./.;
-  separateDepsDeriv = true;
 }

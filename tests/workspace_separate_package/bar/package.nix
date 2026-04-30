@@ -7,5 +7,4 @@ dune2nix.mkDuneProject {
   # Redundant but making sure this works
   duneLock = ../dune.lock;
 
-  separateDepsDeriv = true;
 }
