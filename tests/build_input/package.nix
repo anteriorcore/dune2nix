@@ -12,4 +12,6 @@ dune2nix.mkDuneProject {
   # This derivation only reuses build artifacts when they go through the global
   # cache
   DUNE_CACHE = "enabled";
+  # NOMERGE testing
+  separateDepsDeriv = true;
 }

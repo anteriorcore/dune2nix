@@ -334,15 +334,6 @@
                   ]
                 );
 
-                installPhase = ''
-                  runHook preInstall
-
-                  mkdir -p $out/cache
-                  cp -r _build $out/
-
-                  runHook postInstall
-                '';
-
                 # The dependencies shouldn’t be tampered with: just build and
                 # copy.  Fixing up is left to the final derivation.
                 dontFixup = true;
@@ -440,9 +431,8 @@
                   # I'm not sure what exactly but Dune cares about some file
                   # metadata. Combination of `cp -a` and `chmod -R u+w` seems
                   # to work. - shun 2026-03
-                  cp -a ${finalAttrs.passthru.duneDeps}/_build .
                   cp -a ${finalAttrs.passthru.duneDeps}/cache $DUNE_CACHE_ROOT
-                  chmod -R u+w $DUNE_CACHE_ROOT _build
+                  chmod -R u+w $DUNE_CACHE_ROOT
                 ''
               )
               + ''
