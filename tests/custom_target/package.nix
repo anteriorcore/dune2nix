@@ -9,7 +9,14 @@ let
   };
 
   # 2: override the final derivation:
-  overridden = (dune2nix.mkDuneProject { src = ./.; }).overrideAttrs { target = "@pkg-install"; };
+  overridden =
+    (dune2nix.mkDuneProject {
+      src = ./.;
+      # NOMERGE just testing
+      DUNE_CACHE = "enabled";
+      separateDepsDeriv = true;
+    }).overrideAttrs
+      { target = "@pkg-install"; };
 in
 linkFarm "custom_target" (
   builtins.mapAttrs (

@@ -26,4 +26,7 @@ dune2nix.mkDuneProject {
     $out/bin/make_wrapper foo               bar > test.txt
     diff -u test.txt $expectedPath
   '';
+  # NOMERGE just testing
+  DUNE_CACHE = "enabled";
+  separateDepsDeriv = true;
 }

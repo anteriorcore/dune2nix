@@ -14,4 +14,7 @@ dune2nix.mkDuneProject {
   # because the cache is first built separately, then copied to a new cache dir
   # for the final derivation.
   DUNE_CACHE = "enabled";
+
+  # NOMERGE just testing
+  separateDepsDeriv = true;
 }

@@ -25,4 +25,7 @@ dune2nix.mkDuneProject {
         );
       }
     ) prev;
+  # NOMERGE just testing
+  DUNE_CACHE = "enabled";
+  separateDepsDeriv = true;
 }
