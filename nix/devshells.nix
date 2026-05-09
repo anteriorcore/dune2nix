@@ -4,6 +4,7 @@
     { pkgs, ... }:
     {
       devshells.default = {
+        name = "dune2nix";
         packages = with pkgs; [
           dune
 
