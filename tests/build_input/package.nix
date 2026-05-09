@@ -9,6 +9,7 @@ dune2nix.mkDuneProject {
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ gmp ];
 
+  duneSeparateDeps = true;
   # This derivation only reuses build artifacts when they go through the global
   # cache
   DUNE_CACHE = "enabled";

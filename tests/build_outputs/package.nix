@@ -9,7 +9,7 @@ let
     src = ./.;
     duneIncludeBuildOutputs = true;
   };
-  two = one.overrideAttrs { separateDepsDeriv = true; };
+  two = one.overrideAttrs { duneSeparateDeps = true; };
 in
 runCommand "test"
   {
