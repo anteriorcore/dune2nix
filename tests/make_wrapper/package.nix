@@ -16,6 +16,7 @@ dune2nix.mkDuneProject {
     done
   '';
   doInstallCheck = true;
+  duneSeparateDeps = true;
   expected = ''
     [1] hard-coded using makeWrapper
     [2] foo

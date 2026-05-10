@@ -3,9 +3,7 @@
 dune2nix.mkDuneProject {
   src = ./.;
   doCheck = true;
-  # Temporarily disabled because the implementation is broken and this is
-  # blocking CI.
-  #separateDepsDeriv = true;
+  duneSeparateDeps = true;
   # Set this to force everything into the global cache (which is also stored in
   # the Nix store).  A regular separate-derivations build puts everything in
   # _build, but when cache is enabled it will go through a separate dir instead.

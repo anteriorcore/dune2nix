@@ -62,13 +62,30 @@
             # when there's a change in `dune-*` files.  Use with caution: all
             # dependencies, including ocamlc, must be relocatable.  The ocaml
             # compiler only became relocatable with 5.5.0.
-            separateDepsDeriv ? false,
+            duneSeparateDeps ? false,
+
+            # Patch dune cache logic to always consider any existing cache entry
+            # fresh, no matter its digest.  Not useful in “real” dune use, but
+            # necessary for nix build environments with separate derivation for
+            # dependencies, because the dune cache busting logic is too
+            # aggressive, particularly across different builders.
+            dunePatchCacheAlwaysFresh ? duneSeparateDeps,
+
+            # Sanity check to ensure that no cached entries are considered stale
+            # by dune.  In a Nix context, that almost certainly means something
+            # is wrong, and the failure mode is painful as it silently rebuilds
+            # the dependency, which can surreptitiously inflate build times.
+            # Only makes sense when getting cache from a separate derivation in
+            # the first place.  (I’ve seen this check fail on a derivation that
+            # was built atomically, and at that point, dune my dear, it’s out of
+            # my hands...)
+            duneCheckNoCacheMiss ? duneSeparateDeps,
 
             # Concurrency is part of the cache key. When reusing dependency
             # build artifacts from a separate derivation, set concurrency to 2
             # to make the cache key stable.  2 is the highest safe
             # parallelization count we could think of.
-            jobs ? if separateDepsDeriv then 2 else "$NIX_BUILD_CORES",
+            jobs ? if duneSeparateDeps then 2 else "$NIX_BUILD_CORES",
             ...
           }@args:
           let
@@ -85,6 +102,16 @@
                 sexp.scalar [ "lock_dir" ] ctx
               else
                 "dune.lock";
+
+            dune' =
+              if finalAttrs.dunePatchCacheAlwaysFresh then
+                builtins.trace "warning: dune2nix dunePatchCacheAlwaysFresh is experimental" (
+                  dune.overrideAttrs (old: {
+                    patches = old.patches or [ ] ++ [ ../dune-cache-always-fresh.patch ];
+                  })
+                )
+              else
+                dune;
 
             duneLock = args.duneLock or (src + "/${lockDir}");
 
@@ -379,7 +406,7 @@
             # store.  Strongly recommended to leave this as-is.
             DUNE_CACHE_STORAGE_MODE = args.DUNE_CACHE_STORAGE_MODE or "copy";
 
-            inherit separateDepsDeriv;
+            inherit duneSeparateDeps dunePatchCacheAlwaysFresh duneCheckNoCacheMiss;
 
             passthru = args.passthru or { } // {
               inherit
@@ -392,16 +419,16 @@
 
             # zstd is needed for ocaml, but of course not if that’s built in a
             # separate derivation.
-            buildInputs = args.buildInputs or [ ] ++ lib.optionals (!finalAttrs.separateDepsDeriv) [ zstd ];
+            buildInputs = args.buildInputs or [ ] ++ lib.optionals (!finalAttrs.duneSeparateDeps) [ zstd ];
 
             nativeBuildInputs =
               (args.nativeBuildInputs or [ ])
               ++ [
-                dune
+                dune'
                 # Dune wants to write in ~/.cache
                 writableTmpDirAsHomeHook
               ]
-              ++ lib.optionals (!finalAttrs.dontDuneCheckNoCacheMiss) [ jq ];
+              ++ lib.optionals finalAttrs.duneCheckNoCacheMiss [ jq ];
 
             # Set up the cache in case the program wants to use it.
             duneConfigureCachePhase = ''
@@ -419,36 +446,41 @@
                 ''
             )
             + ''
+              mkdir -p "$DUNE_CACHE_ROOT"
               runHook postDuneConfigureCache
             '';
 
             prePhases = args.prePhases or [ ] ++ [ "duneConfigureCachePhase" ];
 
-            patchPhase =
-              args.patchPhase or ''
-                runHook prePatch
+            duneLoadCache = ''
+              runHook preDuneLoacCache
+
+            ''
+            + lib.optionalString (lib.pathExists duneLock) (
+              ''
+                rm -rf ${lockDir}
+                cp -rL ${patchedLock} ${lockDir}
 
               ''
-              + lib.optionalString (lib.pathExists duneLock) (
-                ''
-                  rm -rf ${lockDir}
-                  cp -rL ${patchedLock} ${lockDir}
+              + lib.optionalString finalAttrs.duneSeparateDeps ''
 
-                ''
-                + lib.optionalString finalAttrs.separateDepsDeriv ''
+                # I'm not sure what exactly but Dune cares about some file
+                # metadata. Combination of `cp -a` and `chmod -R u+w` seems
+                # to work. - shun 2026-03
+                cp -a ${finalAttrs.passthru.duneDeps}/_build .
+                cp -a ${finalAttrs.passthru.duneDeps}/cache/. $DUNE_CACHE_ROOT/
+                chmod -R u+w $DUNE_CACHE_ROOT _build
+              ''
+            )
+            + ''
 
-                  # I'm not sure what exactly but Dune cares about some file
-                  # metadata. Combination of `cp -a` and `chmod -R u+w` seems
-                  # to work. - shun 2026-03
-                  cp -a ${finalAttrs.passthru.duneDeps}/_build .
-                  cp -a ${finalAttrs.passthru.duneDeps}/cache $DUNE_CACHE_ROOT
-                  chmod -R u+w $DUNE_CACHE_ROOT _build
-                ''
-              )
-              + ''
+              runHook postDuneLoacCache
+            '';
 
-                runHook postPatch
-              '';
+            # Load pre-build to avoid changing the cache at all during configure
+            # phase, updateAutotools.. phase, etc.  This helps avoid cache
+            # invalidation by dune.
+            preBuildPhases = args.preBuildPhases or [ ] ++ [ "duneLoadCache" ];
 
             # The build context. Dune supports "default" and Opam switch context,
             # but I'm not convinced that we should support the latter: if you're
@@ -502,13 +534,14 @@
               # Nix, particularly when using separate dependency derivations, so
               # let’s enable it, to be safe.
               "--wait-for-filesystem-clock"
-            ];
+            ]
+            ++ lib.optionals finalAttrs.dunePatchCacheAlwaysFresh [ "--cache-always-fresh" ];
 
             buildPhase =
               args.buildPhase or ''
                 runHook preBuild
 
-                if [[ -z "''${dontDuneCheckNoCacheMiss-}" ]]; then
+                if [[ -n "''${duneCheckNoCacheMiss-}" ]]; then
                   # Semantics of DUNE_TRACE envvar are a bit complicated: either
                   # comma separated, XOR +/- alternating.
                   if [[ "''${DUNE_TRACE-}" == *,* ]]; then
@@ -539,7 +572,7 @@
               args.checkPhase or ''
                 runHook preCheck
 
-                dune runtest $target ${jobsFlag}
+                dune runtest $duneBuildFlags $target ${jobsFlag}
 
                 runHook postCheck
               '';
@@ -553,9 +586,8 @@
                 runHook postInstall
               '';
 
-            dontDuneCheckNoCacheMiss = false;
             duneCheckNoCacheMissPhase = ''
-              if [[ -z "''${dontDuneCheckNoCacheMiss-}" ]]; then
+              if [[ -n "''${duneCheckNoCacheMiss-}" ]]; then
                 outfile=dune-cache-misses.jsonl
                 dune trace cat --trace-file _build/trace.csexp \
                   | jq -c 'select(.cat == "cache" and .name == "workspace_local_miss" and (.args.reason | startswith("rule or dependencies changed")))' \
@@ -570,7 +602,7 @@
               cache it generated, itself.  The failure mode is that builds
               succeed, but become very slow, as every single derivation will
               require a rebuild of all dependencies.  If you know what you're
-              doing, you can set dontDuneCheckNoCacheMiss to 'true' on this
+              doing, you can set duneCheckNoCacheMiss to 'false' on this
               derivation.
 
               EOF
@@ -609,7 +641,7 @@
           "context"
           "enableParallelBuilding"
           "srcOverrides"
-          "separateDepsDeriv"
+          "duneSeparateDeps"
         ];
       };
 
