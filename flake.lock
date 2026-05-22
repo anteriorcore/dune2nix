@@ -35,16 +35,16 @@
         "revdeps-dune": "revdeps-dune"
       },
       "locked": {
-        "lastModified": 1777933930,
-        "narHash": "sha256-uorqs4wXUp+cf51iNPAWEDeibrGROAsLTriHhZkuvzw=",
+        "lastModified": 1778790984,
+        "narHash": "sha256-9D3bnAT7OADLAiG27JIwHxaktp/GgMTB1WuGt4eghZI=",
         "owner": "ocaml",
         "repo": "dune",
-        "rev": "5c75ff0ce9c4b1189de8254c4da446db91c5afa1",
+        "rev": "6f6eee69eda59e355bae2ca4e3ad1af678271883",
         "type": "github"
       },
       "original": {
         "owner": "ocaml",
-        "ref": "3.23.0",
+        "ref": "3.23.1",
         "repo": "dune",
         "type": "github"
       }
