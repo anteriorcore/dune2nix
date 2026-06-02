@@ -1,4 +1,4 @@
-(version 5.5.0~alpha3)
+(version 5.5.0~beta1)
 
 (install
  (all_platforms
@@ -113,8 +113,8 @@
 
 (source
  (fetch
-  (url https://github.com/ocaml/ocaml/archive/5.5.0-alpha3.tar.gz)
+  (url https://github.com/ocaml/ocaml/archive/5.5.0-beta1.tar.gz)
   (checksum
-   sha256=3f4c5a4395a790ee09f1826ccddc19f6be87fcb385d3e8db94159b1cb3191e8e)))
+   sha256=4828cb132d9df1e308127a8c257567deea3d83c4ce3bf0fbe54083ba4a938bcc)))
 
 (avoid)

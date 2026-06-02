@@ -1,0 +1,12 @@
+(lang dune 3.21)
+
+(pkg enabled)
+
+(repository
+  ;; Patch for bigstringaf, which only lists md5 as its hash.
+  ;; We've submitted a PR for this, but will keep this even after the PR is
+  ;; merged to test custom repository.
+  (name anteriorcore)
+  (url git+https://github.com/anteriorcore/opam-repository#173d8332437c1219afa3d6335ef910dd32316123))
+
+(lock_dir (repositories anteriorcore overlay))
