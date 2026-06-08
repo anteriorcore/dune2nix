@@ -1,5 +1,4 @@
-{ inputs, ... }:
-{
+{ inputs, ... }: {
   # An optional overlay to fix issues with Dune, using the latest build from
   # upstream. It may break any packages that uses Dune: use with caution, no
   # guarantee that this works for you.
