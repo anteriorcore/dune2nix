@@ -1,0 +1,29 @@
+(lang package 0.1)
+
+(dependency_hash c3bf86190aca418a89c1aa44a279e2e4)
+
+(ocaml ocaml-base-compiler)
+
+(repositories
+ (complete true)
+ (used
+  ((source
+    https://github.com/ocaml-dune/opam-overlays.git#2a9543286ff0e0656058fee5c0da7abc16b8717d))
+  ((source
+    https://github.com/ocaml/opam-repository.git#b860455781b24ea862ab687f6345d8bc6c8a3a82))))
+
+(expanded_solver_variable_bindings
+ (variable_values
+  (post true)
+  (opam-version 2.2.0))
+ (unset_variables sys-ocaml-libc build))
+
+(solved_for_platforms
+ ((arch x86_64)
+  (os linux))
+ ((arch arm64)
+  (os linux))
+ ((arch x86_64)
+  (os macos))
+ ((arch arm64)
+  (os macos)))
