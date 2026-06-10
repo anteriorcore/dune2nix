@@ -1,5 +1,4 @@
-{ self, ... }:
-{
+{ self, ... }: {
   flake.lib.dune2nix =
     {
       lib,

@@ -1,5 +1,4 @@
-{ ... }:
-{
+{ ... }: {
   perSystem.treefmt.programs = {
     # keep-sorted start block=yes
     actionlint.enable = true;

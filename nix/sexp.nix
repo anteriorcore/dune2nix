@@ -1,7 +1,6 @@
 # Simple and limited S-expression parser. Project agnostic.
 
-{ lib, self, ... }:
-{
+{ lib, self, ... }: {
   flake = {
     lib.sexp =
       let

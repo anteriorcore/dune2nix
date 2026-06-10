@@ -1,7 +1,6 @@
 # Kitchen sink for project internal stuffs
 
-{ inputs, self, ... }:
-{
+{ inputs, self, ... }: {
   perSystem =
     {
       system,
