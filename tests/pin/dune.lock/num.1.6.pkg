@@ -1,0 +1,32 @@
+(version 1.6)
+
+(build
+ (all_platforms
+  ((action
+    (run
+     %{make}
+     PROFILE=release
+     (when
+      (catch_undefined_var
+       (and_absorb_undefined_var
+        (not %{pkg:ocaml:preinstalled})
+        (< %{pkg:ocaml:version} 5.0.0~~))
+       false)
+      opam-legacy)
+     (when
+      (catch_undefined_var
+       (or_absorb_undefined_var
+        %{pkg:ocaml:preinstalled}
+        (>= %{pkg:ocaml:version} 5.0.0~~))
+       false)
+      opam-modern))))))
+
+(depends
+ (all_platforms (ocaml)))
+
+(source
+ (fetch
+  (url
+   git+https://github.com/ocaml/num#ad6a38b613d996262e6311d503dd8c53cc1a5075)))
+
+(dev)

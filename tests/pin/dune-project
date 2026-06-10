@@ -1,0 +1,18 @@
+(lang dune 3.21)
+
+(name pin)
+
+(pin
+ (package
+  (name num)
+  (version 1.6))
+ (url git+https://github.com/ocaml/num))
+
+(package
+ (name pin)
+ (depends
+  (ocaml (= 5.5.0))
+  relocatable
+  ; small dependency-free lib
+  num
+  ))

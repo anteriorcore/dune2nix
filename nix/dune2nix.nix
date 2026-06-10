@@ -125,19 +125,10 @@
                 self:
                 let
                   fetch =
-                    {
-                      name,
-                      url,
-                      checksum,
-                      ...
-                    }:
+                    { name, src, ... }@args:
                     stdenv.mkDerivation {
                       name = "${name}-src";
-                      src = fetchurl {
-                        inherit url;
-                        # Dune uses "<algo>=<hash>" format, while Nix uses "<algo>:<hash>".
-                        hash = lib.replaceString "=" ":" checksum;
-                      };
+                      inherit src;
                       # Some of the fixupPhases are extremely useful, others are
                       # actively harmful to a supposedly transparent tarball unpacking
                       # derivation.  Particularly block passes which change file
@@ -209,20 +200,40 @@
                     if a ? fetch then
                       let
                         node = builtins.mapAttrs (_: builtins.head) (sexp.fromAlist a.fetch);
-                        drv =
-                          if (node ? checksum) then
-                            fetch (
-                              {
-                                inherit name;
-                                lockFileSexp = a;
-                              }
-                              // node
-                            )
+                        inherit (node) url;
+                        match = builtins.match "^([a-zA-Z0-9+_-]+)://(.*)" url;
+                        protocol = if match == null then "file" else builtins.head match;
+                        rest = builtins.elemAt match 1;
+                        copy =
+                          if protocol == "file" then
+                            src + "/${rest}"
+                          else if protocol == "git+https" then
+                            fetch {
+                              inherit name;
+                              lockFileSexp = a;
+                              src =
+                                let
+                                  s = lib.splitString "#" rest;
+                                in
+                                builtins.fetchGit {
+                                  url = "https://${builtins.head s}";
+                                  rev = lib.last s;
+                                };
+                            }
+                          else if protocol == "http" || protocol == "https" then
+                            fetch {
+                              inherit name;
+                              lockFileSexp = a;
+                              src = fetchurl {
+                                inherit url;
+                                hash = lib.replaceString "=" ":" node.checksum;
+                              };
+                            }
                           else
-                            src + "/${lib.removePrefix "file://" node.url}";
+                            throw "Unknown protocol: ${protocol}";
                       in
                       {
-                        copy = drv;
+                        inherit copy;
                       }
                     else
                       a;
