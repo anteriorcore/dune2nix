@@ -9,7 +9,7 @@
       # Be careful when updating dune; it’s unstable, development can be
       # haphazard, and different minor versions introduce big changes.  Read the
       # release notes *carefully*.
-      url = "github:ocaml/dune/3.23.1";
+      url = "github:ocaml/dune/3.24.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-parts = {
