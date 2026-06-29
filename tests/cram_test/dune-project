@@ -9,7 +9,7 @@
 
 (authors "Anterior <tech@anterior.com>")
 
-(license AGPLv3)
+(license GPLv3)
 
 (package
  (name cram_test)
