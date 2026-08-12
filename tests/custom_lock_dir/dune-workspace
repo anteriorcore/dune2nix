@@ -1,7 +1,5 @@
 (lang dune 3.21)
 
-(pkg enabled)
-
 (lock_dir
   (path my_dune.lock))
 
