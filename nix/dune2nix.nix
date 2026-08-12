@@ -357,7 +357,6 @@
                     # Might as well just provide it by default.
                     zstd
                   ]
-                  ++ lib.optionals finalAttrs.duneSeparateDeps [ gitMinimal ]
                 );
 
                 installPhase = ''
@@ -418,7 +417,10 @@
 
             # zstd is needed for ocaml, but of course not if that’s built in a
             # separate derivation.
-            buildInputs = args.buildInputs or [ ] ++ lib.optionals (!finalAttrs.duneSeparateDeps) [ zstd ];
+            buildInputs =
+              args.buildInputs or [ ]
+              ++ lib.optionals finalAttrs.duneSeparateDeps [ gitMinimal ]
+              ++ lib.optionals (!finalAttrs.duneSeparateDeps) [ zstd ];
 
             nativeBuildInputs =
               (args.nativeBuildInputs or [ ])
@@ -426,6 +428,7 @@
                 dune
                 # Dune wants to write in ~/.cache
                 writableTmpDirAsHomeHook
+		gitMinimal
               ]
               ++ lib.optionals finalAttrs.duneCheckNoCacheMiss [ jq ];
 
