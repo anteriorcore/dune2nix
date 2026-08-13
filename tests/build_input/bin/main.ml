@@ -37,4 +37,3 @@ let () =
   if Http.Status.compare resp.status `OK = 0 then
     print_string @@ Eio.Buf_read.(parse_exn take_all) body ~max_size:max_int
   else Fmt.epr "Unexpected HTTP status: %a" Http.Status.pp resp.status
-authenticator

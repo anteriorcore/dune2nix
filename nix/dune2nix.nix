@@ -547,13 +547,13 @@
                 # find them.
 
                 OCAMLPATH=""
-                for target in "$pkg_dir"/*/target/lib; do
-                  OCAMLPATH="''${OCAMLPATH:+$OCAMLPATH:}$target"
+                for lib in "$pkg_dir"/*/target/lib; do
+                  OCAMLPATH="''${OCAMLPATH:+$OCAMLPATH:}$lib"
                 done
 
                 CAML_LD_LIBRARY_PATH=""
-                for stubs in "$pkg_dir"/*/target/lib/stublibs; do
-                  CAML_LD_LIBRARY_PATH="''${CAML_LD_LIBRARY_PATH:+$CAML_LD_LIBRARY_PATH:}$stubs"
+                for stub in "$pkg_dir"/*/target/lib/stublibs; do
+                  CAML_LD_LIBRARY_PATH="''${CAML_LD_LIBRARY_PATH:+$CAML_LD_LIBRARY_PATH:}$stub"
                 done
 
                 for bin in "$pkg_dir"/*/target/bin; do
@@ -562,10 +562,7 @@
 
                 export OCAMLPATH CAML_LD_LIBRARY_PATH
 
-                # `@install` target creates `.install` file that allows us to
-                # `dune install` later. We initially didn't need this and I have
-                # no clue why we need this now. - shun 2026-08
-                dune build $duneBuildFlags @install $target ${jobsFlag}
+                dune build $duneBuildFlags $target ${jobsFlag}
 
                 runHook postBuild
               '';
