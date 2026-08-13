@@ -66,18 +66,6 @@
         "type": "github"
       }
     },
-    "dune-checksum-sha256-patch": {
-      "flake": false,
-      "locked": {
-        "narHash": "sha256-W0+bIK1FvKAYRGB7i2oiEBmf6ibCpjwNUPZ/v3thBdQ=",
-        "type": "file",
-        "url": "https://github.com/ocaml/dune/commit/5a2a2ef81ad76f64d4ca9e1c130c0f72b5809d41.patch"
-      },
-      "original": {
-        "type": "file",
-        "url": "https://github.com/ocaml/dune/commit/5a2a2ef81ad76f64d4ca9e1c130c0f72b5809d41.patch"
-      }
-    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
@@ -429,7 +417,6 @@
       "inputs": {
         "devshell": "devshell",
         "dune": "dune",
-        "dune-checksum-sha256-patch": "dune-checksum-sha256-patch",
         "flake-parts": "flake-parts",
         "nix-unit": "nix-unit",
         "nixpkgs": "nixpkgs_2",

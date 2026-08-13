@@ -8,7 +8,7 @@
       inherit (final.stdenv.hostPlatform) system;
 
       dune = inputs.dune.packages.${system}.dune.overrideAttrs (old: {
-        patches = (old.patches or [ ]) ++ [ inputs.dune-checksum-sha256-patch ];
+        patches = (old.patches or [ ]) ++ [ ../dune-checksum-sha256.patch ];
       });
 
       inherit (inputs.nixpkgs.legacyPackages.${system}) ocamlformat ocamlPackages;

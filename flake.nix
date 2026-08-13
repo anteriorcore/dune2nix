@@ -12,12 +12,6 @@
       url = "github:ocaml/dune/3.24.2";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Patch to use sha256 instead of md5 when generating a checksum for source
-    # archives that lack a checksum.
-    dune-checksum-sha256-patch = {
-      url = "https://github.com/ocaml/dune/commit/5a2a2ef81ad76f64d4ca9e1c130c0f72b5809d41.patch";
-      flake = false;
-    };
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
