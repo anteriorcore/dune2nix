@@ -4,8 +4,7 @@
  (all_platforms ((dune))))
 
 (depends
- (all_platforms
-  (ocaml relocatable)))
+ (all_platforms (ocaml)))
 
 (source
  (fetch

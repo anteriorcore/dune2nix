@@ -1,0 +1,19 @@
+(version 1.0.4)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs}))))))
+
+(depends
+ (all_platforms
+  (ocaml dune cstruct mirage-crypto)))
+
+(source
+ (fetch
+  (url
+   https://github.com/hannesm/ocaml-hkdf/releases/download/v1.0.4/hkdf-v1.0.4.tbz)
+  (checksum
+   sha512=d08e50857f7761572adc4d382975fde5808898c1d92d9e6e943a496cba8780ffabe1edf67844063b70d9727c0fe10b24391e001a3f65c978a5326ac82199cc88)))

@@ -7,9 +7,9 @@
     let
       inherit (final.stdenv.hostPlatform) system;
 
-      # [1]: https://github.com/ocaml/dune/pull/12583 (Dune Pins itself #12583)
-      # [2]: https://github.com/ocaml/dune/pull/13901 (fix(pkg): prefer stronger hash in lock #13901)
-      inherit (inputs.dune.packages.${system}) dune;
+      dune = inputs.dune.packages.${system}.dune.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ inputs.dune-checksum-sha256-patch ];
+      });
 
       inherit (inputs.nixpkgs.legacyPackages.${system}) ocamlformat ocamlPackages;
     in

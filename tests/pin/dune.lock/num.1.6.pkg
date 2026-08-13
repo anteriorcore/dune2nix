@@ -27,6 +27,6 @@
 (source
  (fetch
   (url
-   git+https://github.com/ocaml/num#ad6a38b613d996262e6311d503dd8c53cc1a5075)))
+   git+https://github.com/ocaml/num#99cad67370e4b3337baa9237eea46732c33c4bfd)))
 
 (dev)

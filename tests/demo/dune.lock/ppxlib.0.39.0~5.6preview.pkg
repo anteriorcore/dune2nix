@@ -1,0 +1,21 @@
+(version 0.39.0~5.6preview)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs} @install))))))
+
+(depends
+ (all_platforms
+  (dune ocaml ocaml-compiler-libs ppx_derivers sexplib0)))
+
+(source
+ (fetch
+  (url
+   https://github.com/ocaml-ppx/ppxlib/archive/2e150834476230e99e48dfdf34c5e4a1ea6e749b.tar.gz)
+  (checksum
+   sha512=e15e956a114ab3f61dfa8f7eceed088082a116f3b6fc832b901729f611258af3b39bda748b2046b4886f429617aa64802f90e0520db82302443ecbba461970b2)))
+
+(avoid)

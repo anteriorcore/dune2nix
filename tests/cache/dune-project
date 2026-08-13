@@ -4,4 +4,4 @@
 
 (package
  (name cache)
- (depends (ocaml (= 5.5.0)) relocatable))
+ (depends (ocaml (>= 5.6.0))))

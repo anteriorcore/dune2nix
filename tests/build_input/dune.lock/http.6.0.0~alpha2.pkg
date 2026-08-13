@@ -1,0 +1,21 @@
+(version 6.0.0~alpha2)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs} @install))))))
+
+(depends
+ (all_platforms
+  (dune ocaml)))
+
+(source
+ (fetch
+  (url
+   https://github.com/mirage/ocaml-cohttp/releases/download/v6.0.0_alpha2/cohttp-6.0.0.alpha2.tbz)
+  (checksum
+   sha512=342034580418d55e7b9657c09cf187c415e562fc041e8f5eaa489cfae08f60b98afcddbc77632b479755cdfb2d30b5653ed5250b5b7dbde01f0be93f4e828bcc)))
+
+(avoid)
