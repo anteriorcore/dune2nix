@@ -591,7 +591,11 @@
               args.installPhase or ''
                 runHook preInstall
 
-                dune install --context $context --prefix $out
+                # `dune install` is not supported with Dune package management
+                # (https://github.com/ocaml/dune/issues/14449).
+                # Apparently this is the way 🤷 - shun 2026-08
+                mkdir -p $out
+                cp -rL _build/install/$context/. $out/
 
                 runHook postInstall
               '';
