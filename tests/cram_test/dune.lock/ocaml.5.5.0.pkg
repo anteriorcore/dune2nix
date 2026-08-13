@@ -1,4 +1,4 @@
-(version 5.5.0)
+(version 5.6.0)
 
 (build
  (all_platforms
@@ -12,7 +12,7 @@
       gen_ocaml_config.ml
       %{pkg-self:version}
       %{pkg-self:name}
-      "%{pkg:ocaml-base-compiler:version}"
+      "%{pkg:ocaml-variants:version}"
       false
       ""
       ""
@@ -24,7 +24,9 @@
       ""))))))
 
 (depends
- (all_platforms (ocaml-base-compiler)))
+ (all_platforms (ocaml-variants)))
+
+(avoid)
 
 (exported_env
  (+= OCAMLTOP_INCLUDE_PATH "\%{toplevel}%")
