@@ -35,6 +35,7 @@
               (dune2nix.mkDuneProject {
                 src = ../tests/no_deps;
                 passthru.foo = 123;
+                duneSeparateDeps = true;
               }).foo or null;
             expected = 123;
           };

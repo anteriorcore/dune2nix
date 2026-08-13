@@ -8,6 +8,7 @@ let
   one = dune2nix.mkDuneProject {
     src = ./.;
     duneIncludeBuildOutputs = true;
+    duneSeparateDeps = true;
   };
   two = one.overrideAttrs { duneSeparateDeps = true; };
 in

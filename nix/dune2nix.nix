@@ -58,17 +58,18 @@
 
             # Create a separate derivation with only the dependencies (target
             # ‘@pkg-install’).  Caches the built dependencies and only rebuilds
-            # when there's a change in `dune-*` files.  Use with caution: all
-            # dependencies, including ocamlc, must be relocatable.  The ocaml
-            # compiler only became relocatable with 5.5.0.
+            # when there's a change in `dune-*` files. Later during the actual
+            # build, these cached dependencies will be made discoverable to
+            # `ocamlfind` via envvars.
+            #
+            # Internally, during the actual build, existing lockfiles disappear
+            # and Dune package management will be turned off. This may lead to
+            # unexpected behavior: use with caution.
+            #
+            # This is especially powerful for ocaml-compiler which takes very
+            # long time to build. Note that this depends on ocaml-compiler being
+            # "relocatable", which is only supported in version >= 5.5.0.
             duneSeparateDeps ? false,
-
-            # Patch dune cache logic to always consider any existing cache entry
-            # fresh, no matter its digest.  Not useful in “real” dune use, but
-            # necessary for nix build environments with separate derivation for
-            # dependencies, because the dune cache busting logic is too
-            # aggressive, particularly across different builders.
-            dunePatchCacheAlwaysFresh ? duneSeparateDeps,
 
             # Sanity check to ensure that no cached entries are considered stale
             # by dune.  In a Nix context, that almost certainly means something
@@ -80,11 +81,15 @@
             # my hands...)
             duneCheckNoCacheMiss ? duneSeparateDeps,
 
-            # Concurrency is part of the cache key. When reusing dependency
-            # build artifacts from a separate derivation, set concurrency to 2
-            # to make the cache key stable.  2 is the highest safe
-            # parallelization count we could think of.
-            jobs ? if duneSeparateDeps then 2 else "$NIX_BUILD_CORES",
+            # Dune (Opam) gives a lot of liberty to the package build step and
+            # it is technically possible to produce different build outputs
+            # depending on the number of concurrency. However, just like many
+            # packages on Nixpkgs, dune2nix by default assume that none of the
+            # packages would do that. If you _really_ need to depend on such
+            # behavior and/or package, this is the escape hatch: set this to the
+            # minimum number of cores that you and your team use; obviously the
+            # build will be slower.
+            jobs ? "$NIX_BUILD_CORES",
             ...
           }@args:
           let
@@ -101,16 +106,6 @@
                 sexp.scalar [ "lock_dir" ] ctx
               else
                 "dune.lock";
-
-            dune' =
-              if finalAttrs.dunePatchCacheAlwaysFresh then
-                builtins.trace "warning: dune2nix dunePatchCacheAlwaysFresh is experimental" (
-                  dune.overrideAttrs (old: {
-                    patches = old.patches or [ ] ++ [ ../dune-cache-always-fresh.patch ];
-                  })
-                )
-              else
-                dune;
 
             duneLock = args.duneLock or (src + "/${lockDir}");
 
@@ -416,7 +411,7 @@
             # store.  Strongly recommended to leave this as-is.
             DUNE_CACHE_STORAGE_MODE = args.DUNE_CACHE_STORAGE_MODE or "copy";
 
-            inherit duneSeparateDeps dunePatchCacheAlwaysFresh duneCheckNoCacheMiss;
+            inherit duneSeparateDeps duneCheckNoCacheMiss;
 
             passthru = args.passthru or { } // {
               inherit
@@ -434,7 +429,7 @@
             nativeBuildInputs =
               (args.nativeBuildInputs or [ ])
               ++ [
-                dune'
+                dune
                 # Dune wants to write in ~/.cache
                 writableTmpDirAsHomeHook
               ]
@@ -465,23 +460,11 @@
             duneLoadCache = ''
               runHook preDuneLoacCache
 
+              rm -rf ${lockDir}
             ''
-            + lib.optionalString (lib.pathExists duneLock) (
-              ''
-                rm -rf ${lockDir}
-                cp -rL ${patchedLock} ${lockDir}
-
-              ''
-              + lib.optionalString finalAttrs.duneSeparateDeps ''
-
-                # I'm not sure what exactly but Dune cares about some file
-                # metadata. Combination of `cp -a` and `chmod -R u+w` seems
-                # to work. - shun 2026-03
-                cp -a ${finalAttrs.passthru.duneDeps}/_build .
-                cp -a ${finalAttrs.passthru.duneDeps}/cache/. $DUNE_CACHE_ROOT/
-                chmod -R u+w $DUNE_CACHE_ROOT _build
-              ''
-            )
+            + lib.optionalString (lib.pathExists duneLock && !finalAttrs.duneSeparateDeps) ''
+              cp -rL ${patchedLock} ${lockDir}
+            ''
             + ''
 
               runHook postDuneLoacCache
@@ -544,8 +527,7 @@
               # Nix, particularly when using separate dependency derivations, so
               # let’s enable it, to be safe.
               "--wait-for-filesystem-clock"
-            ]
-            ++ lib.optionals finalAttrs.dunePatchCacheAlwaysFresh [ "--cache-always-fresh" ];
+            ];
 
             buildPhase =
               args.buildPhase or ''
@@ -560,7 +542,47 @@
                     export DUNE_TRACE="''${DUNE_TRACE-}+cache"
                   fi
                 fi
-                dune build $duneBuildFlags $target ${jobsFlag}
+
+                ${
+                  if finalAttrs.duneSeparateDeps then
+                    ''
+                      # Tempdir to copy the cached dependencies because Dune
+                      # wants write permission to the directory.
+                      pkg_dir="$(mktemp -d)"
+
+                      # Dune chokes on absolute path: https://github.com/ocaml/dune/issues/12230
+                      pkg_dir="$(realpath --relative-to="$PWD" "$pkg_dir")"
+
+                      cp -r ${finalAttrs.passthru.duneDeps}/_build/_private/default/.pkg/. "$pkg_dir"
+
+                      # Assemble the envvars so the OCaml compilers (ocamlfind) can
+                      # find them.
+
+                      OCAMLPATH=""
+                      for lib in "$pkg_dir"/*/target/lib; do
+                        OCAMLPATH="''${OCAMLPATH:+$OCAMLPATH:}$lib"
+                      done
+
+                      CAML_LD_LIBRARY_PATH=""
+                      for stub in "$pkg_dir"/*/target/lib/stublibs; do
+                        CAML_LD_LIBRARY_PATH="''${CAML_LD_LIBRARY_PATH:+$CAML_LD_LIBRARY_PATH:}$stub"
+                      done
+
+                      for bin in "$pkg_dir"/*/target/bin; do
+                        PATH="''${bin}:$PATH"
+                      done
+
+                      export OCAMLPATH CAML_LD_LIBRARY_PATH
+
+                      # Explicitly disable package-management to prevent Dune
+                      # from getting confused by `pkg` stanza in dune-workspace.
+                      dune build $duneBuildFlags $target ${jobsFlag} --pkg disabled
+                    ''
+                  else
+                    ''
+                      dune build $duneBuildFlags $target ${jobsFlag}
+                    ''
+                }
 
                 runHook postBuild
               '';
