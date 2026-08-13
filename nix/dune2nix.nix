@@ -558,18 +558,16 @@
                       # Assemble the envvars so the OCaml compilers (ocamlfind) can
                       # find them.
 
-                      OCAMLPATH=""
                       for lib in "$pkg_dir"/*/target/lib; do
-                        OCAMLPATH="''${OCAMLPATH:+$OCAMLPATH:}$lib"
+                        addToSearchPath OCAMLPATH "$lib"
                       done
 
-                      CAML_LD_LIBRARY_PATH=""
                       for stub in "$pkg_dir"/*/target/lib/stublibs; do
-                        CAML_LD_LIBRARY_PATH="''${CAML_LD_LIBRARY_PATH:+$CAML_LD_LIBRARY_PATH:}$stub"
+                        addToSearchPath CAML_LD_LIBRARY_PATH "$stub"
                       done
 
                       for bin in "$pkg_dir"/*/target/bin; do
-                        PATH="''${bin}:$PATH"
+                        addToSearchPath PATH "$bin"
                       done
 
                       export OCAMLPATH CAML_LD_LIBRARY_PATH
