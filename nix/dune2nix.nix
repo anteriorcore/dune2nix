@@ -454,10 +454,9 @@
 
               rm -rf ${lockDir}
             ''
-            + lib.optionalString (lib.pathExists duneLock && !finalAttrs.duneSeparateDeps) (''
+            + lib.optionalString (lib.pathExists duneLock && !finalAttrs.duneSeparateDeps) ''
               cp -rL ${patchedLock} ${lockDir}
-
-            '')
+            ''
             + ''
 
               runHook postDuneLoacCache
@@ -536,33 +535,46 @@
                   fi
                 fi
 
-                pkg_dir="$(mktemp -d)"
+                ${
+                  if finalAttrs.duneSeparateDeps then
+                    ''
+                      # Tempdir to copy the cached dependencies because Dune
+                      # wants write permission to the directory.
+                      pkg_dir="$(mktemp -d)"
 
-                # Dune chokes on absolute path: https://github.com/ocaml/dune/issues/12230
-                pkg_dir="$(realpath --relative-to="$PWD" "$pkg_dir")"
+                      # Dune chokes on absolute path: https://github.com/ocaml/dune/issues/12230
+                      pkg_dir="$(realpath --relative-to="$PWD" "$pkg_dir")"
 
-                cp -r ${finalAttrs.passthru.duneDeps}/_build/_private/default/.pkg/. "$pkg_dir"
+                      cp -r ${finalAttrs.passthru.duneDeps}/_build/_private/default/.pkg/. "$pkg_dir"
 
-                # Assemble the envvars so the OCaml compilers (ocamlfind) can
-                # find them.
+                      # Assemble the envvars so the OCaml compilers (ocamlfind) can
+                      # find them.
 
-                OCAMLPATH=""
-                for lib in "$pkg_dir"/*/target/lib; do
-                  OCAMLPATH="''${OCAMLPATH:+$OCAMLPATH:}$lib"
-                done
+                      OCAMLPATH=""
+                      for lib in "$pkg_dir"/*/target/lib; do
+                        OCAMLPATH="''${OCAMLPATH:+$OCAMLPATH:}$lib"
+                      done
 
-                CAML_LD_LIBRARY_PATH=""
-                for stub in "$pkg_dir"/*/target/lib/stublibs; do
-                  CAML_LD_LIBRARY_PATH="''${CAML_LD_LIBRARY_PATH:+$CAML_LD_LIBRARY_PATH:}$stub"
-                done
+                      CAML_LD_LIBRARY_PATH=""
+                      for stub in "$pkg_dir"/*/target/lib/stublibs; do
+                        CAML_LD_LIBRARY_PATH="''${CAML_LD_LIBRARY_PATH:+$CAML_LD_LIBRARY_PATH:}$stub"
+                      done
 
-                for bin in "$pkg_dir"/*/target/bin; do
-                  PATH="''${bin}:$PATH"
-                done
+                      for bin in "$pkg_dir"/*/target/bin; do
+                        PATH="''${bin}:$PATH"
+                      done
 
-                export OCAMLPATH CAML_LD_LIBRARY_PATH
+                      export OCAMLPATH CAML_LD_LIBRARY_PATH
 
-                dune build $duneBuildFlags $target ${jobsFlag}
+                      # Explicitly disable package-management to prevent Dune
+                      # from getting confused by `pkg` stanza in dune-workspace.
+                      dune build $duneBuildFlags $target ${jobsFlag} --pkg disabled
+                    ''
+                  else
+                    ''
+                      dune build $duneBuildFlags $target ${jobsFlag}
+                    ''
+                }
 
                 runHook postBuild
               '';

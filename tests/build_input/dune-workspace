@@ -1,4 +1,7 @@
 (lang dune 3.21)
+
+(pkg enabled)
+
 (repository
   ;; Patch for bigstringaf, which only lists md5 as its hash.
   ;; We've submitted a PR for this, but will keep this even after the PR is
