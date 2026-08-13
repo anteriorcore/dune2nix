@@ -7,7 +7,7 @@
 (package
  (name build_input)
  (depends
-  (ocaml (>= 5.5.0))
+  (ocaml (= 5.5.0))
   ca-certs
   cohttp-eio
   eio_main
