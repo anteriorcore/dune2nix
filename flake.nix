@@ -16,11 +16,6 @@
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
-    nix-unit = {
-      url = "github:nix-community/nix-unit";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.treefmt-nix.follows = "treefmt-nix";
-    };
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     systems.url = "github:nix-systems/default";
     tools = {
@@ -58,7 +53,6 @@
         ./nix/sexp.nix
         ./nix/treefmt.nix
         inputs.devshell.flakeModule
-        inputs.nix-unit.modules.flake.default
         inputs.tools.flakeModules.checkBuildAll
         inputs.treefmt-nix.flakeModule
         # keep-sorted end
