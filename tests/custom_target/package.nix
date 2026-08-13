@@ -6,10 +6,16 @@ let
   direct = dune2nix.mkDuneProject {
     src = ./.;
     target = "@runtest";
+    duneSeparateDeps = true;
   };
 
   # 2: override the final derivation:
-  overridden = (dune2nix.mkDuneProject { src = ./.; }).overrideAttrs { target = "@runtest"; };
+  overridden =
+    (dune2nix.mkDuneProject {
+      src = ./.;
+      duneSeparateDeps = true;
+    }).overrideAttrs
+      { target = "@runtest"; };
 in
 linkFarm "custom_target" (
   builtins.mapAttrs (

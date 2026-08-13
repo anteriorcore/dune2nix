@@ -58,10 +58,18 @@
 
             # Create a separate derivation with only the dependencies (target
             # ‘@pkg-install’).  Caches the built dependencies and only rebuilds
-            # when there's a change in `dune-*` files.  Use with caution: all
-            # dependencies, including ocamlc, must be relocatable.  The ocaml
-            # compiler only became relocatable with 5.5.0.
-            duneSeparateDeps ? true, # NOMERGE
+            # when there's a change in `dune-*` files. Later during the actual
+            # build, these cached dependencies will be made discoverable to
+            # `ocamlfind` via envvars.
+            #
+            # Internally, during the actual build, existing lockfiles disappear
+            # and Dune package management will be turned off. This may lead to
+            # unexpected behavior: use with caution.
+            #
+            # This is especially powerful for ocaml-compiler which takes very
+            # long time to build. Note that this depends on ocaml-compiler being
+            # "relocatable", which is only supported in version >= 5.5.0.
+            duneSeparateDeps ? false,
 
             # Sanity check to ensure that no cached entries are considered stale
             # by dune.  In a Nix context, that almost certainly means something
@@ -76,8 +84,8 @@
             # Dune (Opam) gives a lot of liberty to the package build step and
             # it is technically possible to produce different build outputs
             # depending on the number of concurrency. However, just like many
-            # Nix packages on Nixpkgs, dune2nix by default assume that none of
-            # the packages would do that. If you _really_ need to depend on such
+            # packages on Nixpkgs, dune2nix by default assume that none of the
+            # packages would do that. If you _really_ need to depend on such
             # behavior and/or package, this is the escape hatch: set this to the
             # minimum number of cores that you and your team use; obviously the
             # build will be slower.
