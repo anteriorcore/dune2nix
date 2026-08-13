@@ -9,14 +9,7 @@
 
 (depends
  (all_platforms
-  (conf-gmp-powm-sec
-   ocaml
-   dune
-   mirage-crypto
-   mirage-crypto-rng
-   digestif
-   zarith
-   eqaf)))
+  (ocaml dune dune-configurator duration logs mirage-crypto digestif)))
 
 (source
  (fetch

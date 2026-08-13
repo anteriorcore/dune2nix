@@ -9,14 +9,7 @@
 
 (depends
  (all_platforms
-  (conf-gmp-powm-sec
-   ocaml
-   dune
-   mirage-crypto
-   mirage-crypto-rng
-   digestif
-   zarith
-   eqaf)))
+  (dune ocaml dune-configurator eqaf mirage-crypto-rng digestif)))
 
 (source
  (fetch

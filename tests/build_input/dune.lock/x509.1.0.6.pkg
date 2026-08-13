@@ -1,4 +1,4 @@
-(version 0.16.5)
+(version 1.0.6)
 
 (build
  (all_platforms
@@ -11,7 +11,6 @@
  (all_platforms
   (ocaml
    dune
-   cstruct
    asn1-combinators
    ptime
    base64
@@ -23,12 +22,13 @@
    gmap
    domain-name
    logs
-   pbkdf
+   kdf
+   ohex
    ipaddr)))
 
 (source
  (fetch
   (url
-   https://github.com/mirleft/ocaml-x509/releases/download/v0.16.5/x509-0.16.5.tbz)
+   https://github.com/mirleft/ocaml-x509/releases/download/v1.0.6/x509-1.0.6.tbz)
   (checksum
-   sha512=6dd494dba799eab7edde2af1b63bac6035bf4ae06f3a36dd4fa9abcd13d0c3fe3e93dc5848b65405dc5401b1755fd30c71482cb91f7495bc9cfb7c5bf15ef6d7)))
+   sha512=3ca30aa78366cbb0599cce69a7bbfeaf857cc885f1367f3cf62d4236a55b40172478b73bda70c38b658dcfe9e407326f8db0a260cb36b568e3063c6eb75e0bd7)))

@@ -9,21 +9,7 @@
 
 (depends
  (all_platforms
-  (ocaml
-   dune
-   mirage-crypto
-   mirage-crypto-ec
-   mirage-crypto-pk
-   mirage-crypto-rng
-   x509
-   domain-name
-   fmt
-   kdf
-   logs
-   ipaddr
-   ohex
-   digestif
-   ptime)))
+  (ocaml dune tls mirage-crypto-rng eio ptime)))
 
 (source
  (fetch
