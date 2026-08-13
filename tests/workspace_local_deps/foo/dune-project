@@ -19,7 +19,7 @@
  (name foo)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends (ocaml (= 5.5.0)) relocatable bar)
+ (depends (ocaml (= 5.5.0)) bar)
  (tags
   ("add topics" "to describe" your project)))
 

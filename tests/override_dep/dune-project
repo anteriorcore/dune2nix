@@ -15,7 +15,7 @@
  (name override)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml base64)
+ (depends (ocaml (= 5.5.0)) base64)
  (tags
   ("add topics" "to describe" your project)))
 

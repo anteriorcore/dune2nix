@@ -19,7 +19,7 @@
  (name demo)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends (ocaml (= 5.5.0)) relocatable core)
+ (depends (ocaml (= 5.5.0)) core)
  (tags
   ("add topics" "to describe" your project)))
 

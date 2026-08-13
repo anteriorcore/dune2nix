@@ -14,4 +14,4 @@
 (package
  (name cram_test)
  (synopsis "Testing cram tests in dune2nix")
- (depends ocaml))
+ (depends (ocaml (= 5.5.0))))

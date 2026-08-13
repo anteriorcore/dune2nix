@@ -6,4 +6,4 @@
 
 (package
  (name make_wrapper)
- (depends (ocaml (= 5.5.0)) relocatable))
+ (depends (ocaml (= 5.5.0))))

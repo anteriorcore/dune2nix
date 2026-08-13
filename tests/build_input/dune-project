@@ -8,7 +8,6 @@
  (name build_input)
  (depends
   (ocaml (= 5.5.0))
-  relocatable
   ca-certs
   cohttp-eio
   eio_main
