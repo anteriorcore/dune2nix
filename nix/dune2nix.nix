@@ -529,8 +529,6 @@
               "--wait-for-filesystem-clock"
             ];
 
-            postHook = builtins.readFile ./stdenv-helpers.sh;
-
             buildPhase =
               args.buildPhase or ''
                 runHook preBuild
@@ -571,7 +569,7 @@
                       done
 
                       for bin in "$pkg_dir"/*/target/bin; do
-                        prependToPath PATH "$bin"
+                        addToSearchPath PATH "$bin"
                       done
 
                       export OCAMLPATH CAML_LD_LIBRARY_PATH
