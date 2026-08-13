@@ -7,8 +7,6 @@
 (package
  (name build_input)
  (depends
-  ;; TODO: update to 5.6.0. When set to 5.6.0, because of some version
-  ;; constraint, Dune pins other libs to insanely old versions.
   (ocaml (>= 5.5.0))
   ca-certs
   cohttp-eio
