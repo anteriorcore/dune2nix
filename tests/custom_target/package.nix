@@ -5,14 +5,11 @@ let
   # 1: directly as an argument to the mk function:
   direct = dune2nix.mkDuneProject {
     src = ./.;
-    target = "@pkg-install";
+    target = "@runtest";
   };
 
   # 2: override the final derivation:
-  overridden =
-    (dune2nix.mkDuneProject {
-      src = ./.;
-    }).overrideAttrs { target = "@pkg-install"; };
+  overridden = (dune2nix.mkDuneProject { src = ./.; }).overrideAttrs { target = "@runtest"; };
 in
 linkFarm "custom_target" (
   builtins.mapAttrs (
