@@ -1,8 +1,8 @@
 (lang package 0.1)
 
-(dependency_hash 2fa75f0152e541af6f61b14e50d0fd50)
+(dependency_hash 7d12d1165734d434873b13da0f56d063)
 
-(ocaml ocaml-variants)
+(ocaml ocaml-base-compiler)
 
 (repositories
  (complete true)

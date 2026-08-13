@@ -1,0 +1,19 @@
+(version 2.1.0)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs}))))))
+
+(depends
+ (all_platforms
+  (ocaml dune tls mirage-crypto-rng eio ptime)))
+
+(source
+ (fetch
+  (url
+   https://github.com/mirleft/ocaml-tls/releases/download/v2.1.0/tls-2.1.0.tbz)
+  (checksum
+   sha512=2a5f5685b2a0bc37c3f80ffc2ebf49ad1b5506efedbc35aa6177faeae1dadb3048f35572ee6fc8a37ea352b600563c9080d9b69f42cedb37a56fc631ed44e345)))
