@@ -557,11 +557,6 @@
                       # Assemble the envvars so the OCaml compilers (ocamlfind) can
                       # find them.
 
-                      toolchains="${finalAttrs.passthru.duneDeps}/cache/toolchains"
-
-                      # Assemble the envvars so the OCaml compilers (ocamlfind) can
-                      # find them.
-
                       for lib in "$pkgs"/*/target/lib "$toolchains"/*/target/lib "$toolchains"/*/target/lib/ocaml; do
                         addToSearchPath OCAMLPATH "$lib"
                       done
