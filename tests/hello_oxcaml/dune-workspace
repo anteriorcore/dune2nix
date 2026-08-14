@@ -1,0 +1,11 @@
+(lang dune 3.21)
+
+(pkg enabled)
+
+(repository
+ (name oxcaml)
+ ;; Updates stale patch
+ (url "git+https://github.com/oxcaml/opam-repository.git#refs/pull/60/merge"))
+
+(lock_dir
+ (repositories oxcaml upstream))

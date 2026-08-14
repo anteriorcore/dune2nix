@@ -1,0 +1,13 @@
+diff --git a/Makefile.common-ox b/Makefile.common-ox
+index a2bf94aa73..bccf59b9ff 100644
+--- a/Makefile.common-ox
++++ b/Makefile.common-ox
+@@ -176,7 +176,7 @@ duneconf/%.ws:
+ # have to account for the declaration that would already have been in
+ # ocaml/dune.
+ $(ocamldir)/duneconf/dirs-to-ignore.inc:
+-	echo "(data_only_dirs yacc $(ocaml_subdirs_to_ignore))" > $@
++	echo "(data_only_dirs yacc init_deps dune-3.20.2 menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa ocaml-5.4.0 $(ocaml_subdirs_to_ignore))" > $@
+ 
+ # Targets that should be prerequisites to any target that runs Dune
+ dune_config_targets = \

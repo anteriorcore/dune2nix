@@ -1,0 +1,52 @@
+(version 0.2)
+
+(build
+ (all_platforms ((action (run autoconf -V)))))
+
+(depexts
+ ((autoconf)
+  (or_absorb_undefined_var
+   (= %{os_family} debian)
+   (= %{os_family} ubuntu)))
+ ((autoconf)
+  (= %{os_distribution} centos))
+ ((autoconf)
+  (= %{os_family} fedora))
+ ((autoconf)
+  (= %{os_distribution} arch))
+ ((dev-build/autoconf)
+  (= %{os_distribution} gentoo))
+ ((autoconf)
+  (= %{os_distribution} nixos))
+ ((autoconf)
+  (and_absorb_undefined_var
+   (= %{os} macos)
+   (= %{os_distribution} homebrew)))
+ ((autoconf)
+  (and_absorb_undefined_var
+   (= %{os} macos)
+   (= %{os_distribution} macports)))
+ ((devel/autoconf)
+  (= %{os} openbsd))
+ ((autoconf)
+  (= %{os} freebsd))
+ ((autoconf)
+  (= %{os} netbsd))
+ ((autoconf)
+  (= %{os_distribution} alpine))
+ ((autoconf)
+  (= %{os_distribution} ol))
+ ((autoconf)
+  (= %{os_distribution} rhel))
+ ((system:autoconf)
+  (and_absorb_undefined_var
+   (= %{os} win32)
+   (= %{os_distribution} cygwinports)))
+ ((autoconf)
+  (= %{os_distribution} cygwin))
+ ((autoconf)
+  (or_absorb_undefined_var
+   (= %{os_family} suse)
+   (= %{os_family} opensuse)))
+ ((autoconf)
+  (= %{os_family} altlinux)))

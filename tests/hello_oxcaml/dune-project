@@ -1,0 +1,28 @@
+(lang dune 3.24)
+
+(name hello_oxcaml)
+
+(generate_opam_files false)
+
+(source
+ (github username/reponame))
+
+(using oxcaml 0.1)
+
+(authors "Author Name <author@example.com>")
+
+(maintainers "Maintainer Name <maintainer@example.com>")
+
+(license LICENSE)
+
+(documentation https://url/to/documentation)
+
+(package
+ (name hello_oxcaml)
+ (synopsis "A short synopsis")
+ (description "A longer description")
+ (depends (ocaml-variants (= 5.4.0+ox)))
+ (tags
+  ("add topics" "to describe" your project)))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
