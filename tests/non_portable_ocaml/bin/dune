@@ -1,0 +1,4 @@
+(executable
+ (public_name non_portable_ocaml)
+ (name main)
+ (libraries non_portable_ocaml))
