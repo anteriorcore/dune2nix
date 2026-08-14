@@ -123,7 +123,11 @@
                 self:
                 let
                   fetch =
-                    { name, src, ... }@args:
+                    {
+                      name,
+                      src,
+                      unpack ? true,
+                    }:
                     stdenv.mkDerivation {
                       name = "${name}-src";
                       inherit src;
@@ -132,6 +136,7 @@
                       # derivation.  Particularly block passes which change file
                       # locations.
                       dontMoveSbin = true;
+                      dontUnpack = !unpack;
                       # Extract single file archives into single file derivations
                       postHook = ''
                         unpackCmdHooks+=(singleFileArchive)
@@ -170,6 +175,10 @@
                       installPhase = ''
                         runHook preInstall
 
+                        if [[ -n "$dontUnpack" ]]; then
+                          fileToCopy="$src"
+                        fi
+
                         if [[ -d "$fileToCopy" ]]; then
                           cp -r "$fileToCopy" $out
                         else
@@ -191,7 +200,7 @@
                   # checksum into a { copy = <fixed output derivation fetcher of the
                   # url> }.
                   parseLocationSexp =
-                    name: nodes:
+                    name: unpack: nodes:
                     let
                       a = sexp.fromAlist nodes;
                     in
@@ -207,21 +216,19 @@
                             src + "/${rest}"
                           else if protocol == "git+https" then
                             fetch {
-                              inherit name;
-                              lockFileSexp = a;
+                              inherit name unpack;
                               src =
                                 let
                                   s = lib.splitString "#" rest;
                                 in
-                                builtins.fetchGit {
+                                fetchGit {
                                   url = "https://${builtins.head s}";
                                   rev = lib.last s;
                                 };
                             }
                           else if protocol == "http" || protocol == "https" then
                             fetch {
-                              inherit name;
-                              lockFileSexp = a;
+                              inherit name unpack;
                               src = fetchurl {
                                 inherit url;
                                 hash = lib.replaceString "=" ":" node.checksum;
@@ -266,8 +273,16 @@
                   parseLockSexp =
                     name:
                     mapAttrsOptional {
-                      source = parseLocationSexp name;
-                      extra_sources = v: builtins.mapAttrs parseLocationSexp (sexp.fromAlist v);
+                      source = parseLocationSexp name true;
+                      extra_sources =
+                        v:
+                        builtins.mapAttrs (
+                          _:
+                          # Don't unpack extra_sources: unlike the main source,
+                          # these are often  archives the build step reads and
+                          # unpacks itself. Let's not get into the way.
+                          parseLocationSexp name false
+                        ) (sexp.fromAlist v);
                     };
 
                   # Convert a fully parsed lock file, with our custom sourceSpec
@@ -289,8 +304,6 @@
                   inherit name;
                   passthru = {
                     sexp = parseLockSexp name a;
-                    # Nothing to patch for `lock.dune`, it's only used during
-                    # relocking (i.e. not used during build).
                     text = if name == "lock.dune" then original else sexp.toString (lockFileToAlist self.passthru.sexp);
                   };
                   dontUnpack = true;
@@ -300,7 +313,15 @@
               );
 
             lockFiles = lib.fix (
-              lib.extends srcOverrides (_: lib.mapAttrs (name: _: mkLockFile name) (builtins.readDir duneLock))
+              lib.extends srcOverrides (
+                _:
+                lib.mapAttrs (
+                  name: type:
+                  # Lockdir contains: lockfile (`.pkg`), assets directory
+                  # (`.files`), or lock.dune file.
+                  if type == "directory" then duneLock + "/${name}" else mkLockFile name
+                ) (builtins.readDir duneLock)
+              )
             );
             patchedLock = linkFarm lockDir lockFiles;
 
