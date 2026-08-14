@@ -57,10 +57,15 @@
             duneWorkspace ? src + "/dune-workspace",
 
             # Create a separate derivation with only the dependencies (target
-            # ‘@pkg-install’).  Caches the built dependencies and only rebuilds
+            # ‘@pkg-install’). Caches the built dependencies and only rebuilds
             # when there's a change in `dune-*` files. Later during the actual
             # build, these cached dependencies will be made discoverable to
             # `ocamlfind` via envvars.
+            #
+            # If you're using OCaml version prior to 5.5.0 (or OCaml variant
+            # that is not "relocatable"), this will rely on global toolchain
+            # cache, make sure to NOT turn it off! Refer to the docs for
+            # configuration options: https://dune.readthedocs.io/en/stable/reference/caches.html#configuration
             #
             # Internally, during the actual build, existing lockfiles disappear
             # and Dune package management will be turned off. This may lead to
@@ -545,29 +550,22 @@
                 ${
                   if finalAttrs.duneSeparateDeps then
                     ''
-                      # Tempdir to copy the cached dependencies because Dune
-                      # wants write permission to the directory.
-                      pkg_dir="$(mktemp -d)"
+                      pkgs="${finalAttrs.passthru.duneDeps}/_build/_private/default/.pkg"
 
-                      # Dune chokes on absolute path: https://github.com/ocaml/dune/issues/12230
-                      pkg_dir="$(realpath --relative-to="$PWD" "$pkg_dir")"
-
-                      cp -r ${finalAttrs.passthru.duneDeps}/_build/_private/default/.pkg/. "$pkg_dir"
+                      toolchains="${finalAttrs.passthru.duneDeps}/cache/toolchains"
 
                       # Assemble the envvars so the OCaml compilers (ocamlfind) can
                       # find them.
 
-                      toolchains="${finalAttrs.passthru.duneDeps}/cache/toolchains"
-
-                      for lib in "$pkg_dir"/*/target/lib "$toolchains"/*/target/lib "$toolchains"/*/target/lib/ocaml; do
+                      for lib in "$pkgs"/*/target/lib "$toolchains"/*/target/lib "$toolchains"/*/target/lib/ocaml; do
                         addToSearchPath OCAMLPATH "$lib"
                       done
 
-                      for stub in "$pkg_dir"/*/target/lib/stublibs "$toolchains"/*/target/lib/stublibs; do
+                      for stub in "$pkgs"/*/target/lib/stublibs "$toolchains"/*/target/lib/stublibs; do
                         addToSearchPath CAML_LD_LIBRARY_PATH "$stub"
                       done
 
-                      for bin in "$pkg_dir"/*/target/bin "$toolchains"/*/target/bin; do
+                      for bin in "$pkgs"/*/target/bin "$toolchains"/*/target/bin; do
                         addToSearchPath PATH "$bin"
                       done
 

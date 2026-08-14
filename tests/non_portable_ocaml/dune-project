@@ -19,7 +19,7 @@
  (name non_portable_ocaml)
  (synopsis "A short synopsis")
  (description "A longer description")
- ;; Non-portable compiler (OCaml is portable since 5.5.0)
+ ;; Pin to the last non-portable version (pre-5.5.0)
  (depends (ocaml (= 5.4.0)))
  (tags
   ("add topics" "to describe" your project)))
