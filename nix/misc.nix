@@ -19,29 +19,6 @@
         overlays = [ self.overlays.dune ];
       };
 
-      nix-unit = {
-        inherit inputs;
-        allowNetwork = false;
-
-        tests = {
-          "test basic meta main program" = {
-            expr = config.legacyPackages.tests.demo.meta.mainProgram;
-            expected = "demo";
-          };
-
-          # regression test for anteriorcore/dune2nix#18
-          "test passthru not overridden" = {
-            expr =
-              (dune2nix.mkDuneProject {
-                src = ../tests/no_deps;
-                passthru.foo = 123;
-                duneSeparateDeps = true;
-              }).foo or null;
-            expected = 123;
-          };
-        };
-      };
-
       packages = { inherit (inputs'.tools.packages) nix-flake-check-changed nix-grep-to-build; };
 
       legacyPackages.tests = lib.packagesFromDirectoryRecursive {
@@ -49,11 +26,40 @@
         directory = ../tests;
       };
 
-      # Build all tests as a check.
-      checks = builtins.listToAttrs (
-        lib.mapAttrsToListRecursiveCond (_: v: !(lib.isDerivation v)) (
-          p: lib.nameValuePair "build-${(lib.concatStringsSep "/" p)}"
-        ) config.legacyPackages.tests
-      );
+      checks =
+        let
+          # Build all tests as a check.
+          builds = builtins.listToAttrs (
+            lib.mapAttrsToListRecursiveCond (_: v: !(lib.isDerivation v)) (
+              p: lib.nameValuePair "build-${(lib.concatStringsSep "/" p)}"
+            ) config.legacyPackages.tests
+          );
+
+          failures = lib.runTests {
+            "test basic meta main program" = {
+              expr = config.legacyPackages.tests.demo.meta.mainProgram;
+              expected = "demo";
+            };
+            "test passthru not overridden" = {
+              expr =
+                (dune2nix.mkDuneProject {
+                  src = ../tests/no_deps;
+                  passthru.foo = 123;
+                  duneSeparateDeps = true;
+                }).foo or null;
+              expected = 123;
+            };
+          };
+        in
+        builds
+        // {
+          unit-tests = pkgs.runCommand "unit-tests" { failed = failures != [ ]; } ''
+            if [[ -n "$failed" ]]; then
+              >&2 echo "${lib.generators.toPretty { } failures}"
+              exit 1
+            fi
+            touch $out
+          '';
+        };
     };
 }

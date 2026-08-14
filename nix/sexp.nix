@@ -137,478 +137,509 @@
         parseFile = path: parse (lib.readFile path);
 
       };
+  };
 
-    tests =
+  perSystem = { pkgs, ... }: {
+    checks.sexp-unit =
       let
-        inherit (self.lib.sexp)
-          parse
-          has
-          get
-          fromAlist
-          fromAlistN
-          toAlist
-          scalar
-          update
-          toString
-          ;
-        alistAttrsetFixture = {
-          a = [
-            "b"
-            [
-              "c"
-              1
-            ]
-          ];
-          e = [ 2 ];
-          x = [
-            { y = 3; }
-            { z = 4; }
-          ];
-        };
-      in
-      {
-        parse = {
-          "test: parse basic" = {
-            expr = parse ''
-              (name foo)
-            '';
-            expected = [
-              [
-                "name"
-                "foo"
-              ]
-            ];
-          };
-          "test: parse empty" = {
-            expr = parse "";
-            expected = [ ];
-          };
-          "test: parse multiple entries" = {
-            expr = parse ''
-              (depends foo bar)
-            '';
-            expected = [
-              [
-                "depends"
-                "foo"
-                "bar"
-              ]
-            ];
-          };
-          "test: parse multiple toplevels" = {
-            expr = parse ''
-              (name foo)
-
-              (depends foo bar)
-            '';
-            expected = [
-              [
-                "name"
-                "foo"
-              ]
-              [
-                "depends"
-                "foo"
-                "bar"
-              ]
-            ];
-          };
-          "test: parse nested" = {
-            expr = parse ''
-              (depends
-                (all_platforms
-                  (foo bar baz)))
-            '';
-            expected = [
-              [
-                "depends"
-                [
-                  "all_platforms"
-                  [
-                    "foo"
-                    "bar"
-                    "baz"
-                  ]
-                ]
-              ]
-            ];
-          };
-          "test: parse nested multiple toplevels" = {
-            expr = parse ''
-              (depends
-                (all_platforms
-                  (foo bar baz)))
-
-              (build
-                (all_platforms
-                  (action
-                    (run foo bar))))
-            '';
-            expected = [
-              [
-                "depends"
-                [
-                  "all_platforms"
-                  [
-                    "foo"
-                    "bar"
-                    "baz"
-                  ]
-                ]
-              ]
-              [
-                "build"
-                [
-                  "all_platforms"
-                  [
-                    "action"
-                    [
-                      "run"
-                      "foo"
-                      "bar"
-                    ]
-                  ]
-                ]
-              ]
-            ];
-          };
-        };
-        has = {
-          "test: exists" = {
-            expr = has [ "a" ] (parse "(a b)");
-            expected = true;
-          };
-          "test: missing" = {
-            expr = has [ "x" ] (parse "(a b)");
-            expected = false;
-          };
-          "test: empty path" = {
-            expr = has [ ] (parse "(a b)");
-            expected = true;
-          };
-          "test: nested exists" = {
-            expr = has [ "a" "b" ] (parse "(a (b c))");
-            expected = true;
-          };
-          "test: nested missing" = {
-            expr = has [ "a" "x" ] (parse "(a (b c))");
-            expected = false;
-          };
-        };
-        get = {
-          "test: basic" = {
-            expr = get [ "a" ] (parse "(a b c)");
-            expected = [
-              "b"
-              "c"
-            ];
-          };
-          "test: empty path returns root" = {
-            expr = get [ ] (parse "(a b)");
-            expected = [
-              [
-                "a"
-                "b"
-              ]
-            ];
-          };
-          "test: nested" = {
-            expr = get [ "a" "b" ] (parse "(a (b c d))");
-            expected = [
-              "c"
-              "d"
-            ];
-          };
-          "test: throws on missing key" = {
-            expr = get [ "missing" ] (parse "(a b)");
-            expectedError.type = "ThrownError";
-          };
-          "test: throws on missing nested key" = {
-            expr = get [ "a" "missing" ] (parse "(a (b c))");
-            expectedError.type = "ThrownError";
-          };
-        };
-        fromAlist.test = {
-          expr = fromAlist ([
-            [
-              "a"
-              "b"
-              "c"
-            ]
-            [
-              "x"
-              "y"
-              "z"
-            ]
-            [
-              "aa"
-              "bb"
-              [
-                "cc"
-                "dd"
-              ]
-            ]
-          ]);
-          expected = {
-            a = [
-              "b"
-              "c"
-            ];
-            aa = [
-              "bb"
-              [
-                "cc"
-                "dd"
-              ]
-            ];
-            x = [
-              "y"
-              "z"
-            ];
-          };
-        };
-        fromAlistN = {
-          test = {
-            expr = fromAlistN 2 ([
-              [
-                "a"
-                [
-                  "b"
-                  "c"
-                ]
-                [
-                  "e"
-                  "f"
-                ]
-              ]
-              [
-                "u"
-                [
-                  "v"
-                  [
-                    "w"
-                    [
-                      "x"
-                      [
-                        "y"
-                        [ "z" ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-              [
-                "aa"
-                [
-                  "cc"
-                  "dd"
-                ]
-              ]
-            ]);
-            expected = {
-              a.b = [ "c" ];
-              a.e = [ "f" ];
-              u.v = [
-                [
-                  "w"
-                  [
-                    "x"
-                    [
-                      "y"
-                      [ "z" ]
-                    ]
-                  ]
-                ]
-              ];
-              aa.cc = [ "dd" ];
-            };
-          };
-        };
-        toAlist = {
-          test = {
-            expr = toAlist alistAttrsetFixture;
-            expected = [
-              [
-                "a"
+        tests =
+          let
+            inherit (self.lib.sexp)
+              parse
+              has
+              get
+              fromAlist
+              fromAlistN
+              toAlist
+              scalar
+              update
+              toString
+              ;
+            alistAttrsetFixture = {
+              a = [
                 "b"
                 [
                   "c"
                   1
                 ]
-              ]
-              [
-                "e"
-                2
-              ]
-              [
-                "x"
+              ];
+              e = [ 2 ];
+              x = [
                 { y = 3; }
                 { z = 4; }
-              ]
-            ];
-          };
-          "test: toAlist ∘ fromAlist" = {
-            expr = toAlist (fromAlist [
-              [
-                "a"
-                "b"
-              ]
-              [
-                "x"
-                "z"
-              ]
-              [
-                "b"
-                "d"
-              ]
-            ]);
-            expected = [
-              [
-                "a"
-                "b"
-              ]
-              [
-                "b"
-                "d"
-              ]
-              [
-                "x"
-                "z"
-              ]
-            ];
-          };
-          "test: fromAlist ∘ toAlist" = {
-            expected = alistAttrsetFixture;
-            expr = fromAlist (toAlist alistAttrsetFixture);
-          };
-        };
-        scalar = {
-          "test: basic" = {
-            expr = scalar [ "a" ] (parse "(a b)");
-            expected = "b";
-          };
-          "test: nested" = {
-            expr = scalar [ "a" "b" ] (parse "(a (b c))");
-            expected = "c";
-          };
-          "test: throws on empty value" = {
-            expr = scalar [ "a" ] (parse "(a)");
-            expectedError.type = "ThrownError";
-          };
-        };
-        update = {
-          "test: transform root" = {
-            expr = update [ ] (map (
-              n:
-              if lib.head n == "a" then
+              ];
+            };
+          in
+          {
+            parse = {
+              "test: parse basic" = {
+                expr = parse ''
+                  (name foo)
+                '';
+                expected = [
+                  [
+                    "name"
+                    "foo"
+                  ]
+                ];
+              };
+              "test: parse empty" = {
+                expr = parse "";
+                expected = [ ];
+              };
+              "test: parse multiple entries" = {
+                expr = parse ''
+                  (depends foo bar)
+                '';
+                expected = [
+                  [
+                    "depends"
+                    "foo"
+                    "bar"
+                  ]
+                ];
+              };
+              "test: parse multiple toplevels" = {
+                expr = parse ''
+                  (name foo)
+
+                  (depends foo bar)
+                '';
+                expected = [
+                  [
+                    "name"
+                    "foo"
+                  ]
+                  [
+                    "depends"
+                    "foo"
+                    "bar"
+                  ]
+                ];
+              };
+              "test: parse nested" = {
+                expr = parse ''
+                  (depends
+                    (all_platforms
+                      (foo bar baz)))
+                '';
+                expected = [
+                  [
+                    "depends"
+                    [
+                      "all_platforms"
+                      [
+                        "foo"
+                        "bar"
+                        "baz"
+                      ]
+                    ]
+                  ]
+                ];
+              };
+              "test: parse nested multiple toplevels" = {
+                expr = parse ''
+                  (depends
+                    (all_platforms
+                      (foo bar baz)))
+
+                  (build
+                    (all_platforms
+                      (action
+                        (run foo bar))))
+                '';
+                expected = [
+                  [
+                    "depends"
+                    [
+                      "all_platforms"
+                      [
+                        "foo"
+                        "bar"
+                        "baz"
+                      ]
+                    ]
+                  ]
+                  [
+                    "build"
+                    [
+                      "all_platforms"
+                      [
+                        "action"
+                        [
+                          "run"
+                          "foo"
+                          "bar"
+                        ]
+                      ]
+                    ]
+                  ]
+                ];
+              };
+            };
+            has = {
+              "test: exists" = {
+                expr = has [ "a" ] (parse "(a b)");
+                expected = true;
+              };
+              "test: missing" = {
+                expr = has [ "x" ] (parse "(a b)");
+                expected = false;
+              };
+              "test: empty path" = {
+                expr = has [ ] (parse "(a b)");
+                expected = true;
+              };
+              "test: nested exists" = {
+                expr = has [ "a" "b" ] (parse "(a (b c))");
+                expected = true;
+              };
+              "test: nested missing" = {
+                expr = has [ "a" "x" ] (parse "(a (b c))");
+                expected = false;
+              };
+            };
+            get = {
+              "test: basic" = {
+                expr = get [ "a" ] (parse "(a b c)");
+                expected = [
+                  "b"
+                  "c"
+                ];
+              };
+              "test: empty path returns root" = {
+                expr = get [ ] (parse "(a b)");
+                expected = [
+                  [
+                    "a"
+                    "b"
+                  ]
+                ];
+              };
+              "test: nested" = {
+                expr = get [ "a" "b" ] (parse "(a (b c d))");
+                expected = [
+                  "c"
+                  "d"
+                ];
+              };
+              "test: throws on missing key" = {
+                expr = get [ "missing" ] (parse "(a b)");
+                shouldThrow = true;
+              };
+              "test: throws on missing nested key" = {
+                expr = get [ "a" "missing" ] (parse "(a (b c))");
+                shouldThrow = true;
+              };
+            };
+            fromAlist.test = {
+              expr = fromAlist ([
                 [
                   "a"
-                  "new"
+                  "b"
+                  "c"
                 ]
-              else
-                n
-            )) (parse "(a old)");
-            expected = [
-              [
-                "a"
-                "new"
-              ]
-            ];
-          };
-          "test: transform children" = {
-            expr = update [ "a" ] (_: [
-              [
-                "x"
-                "y"
-              ]
-            ]) (parse "(a (b c))");
-            expected = [
-              [
-                "a"
                 [
                   "x"
                   "y"
+                  "z"
                 ]
-              ]
-            ];
-          };
-          "test: missing key unchanged" = {
-            expr = update [ "missing" ] (_: [ ]) (parse "(a b)");
-            expected = [
-              [
-                "a"
-                "b"
-              ]
-            ];
-          };
-          "test: preserves siblings" = {
-            expr = update [ "b" ] (_: [ "new" ]) (parse ''
-              (a 1)
-              (b old)
-              (c 2)
-            '');
-            expected = [
-              [
-                "a"
-                "1"
-              ]
-              [
-                "b"
-                "new"
-              ]
-              [
-                "c"
-                "2"
-              ]
-            ];
-          };
-          "test: nested update" = {
-            expr = update [ "a" "b" ] (_: [ "new" ]) (parse "(a (b old) (c kept))");
-            expected = [
-              [
-                "a"
                 [
+                  "aa"
+                  "bb"
+                  [
+                    "cc"
+                    "dd"
+                  ]
+                ]
+              ]);
+              expected = {
+                a = [
                   "b"
-                  "new"
-                ]
-                [
                   "c"
-                  "kept"
-                ]
-              ]
-            ];
+                ];
+                aa = [
+                  "bb"
+                  [
+                    "cc"
+                    "dd"
+                  ]
+                ];
+                x = [
+                  "y"
+                  "z"
+                ];
+              };
+            };
+            fromAlistN = {
+              test = {
+                expr = fromAlistN 2 ([
+                  [
+                    "a"
+                    [
+                      "b"
+                      "c"
+                    ]
+                    [
+                      "e"
+                      "f"
+                    ]
+                  ]
+                  [
+                    "u"
+                    [
+                      "v"
+                      [
+                        "w"
+                        [
+                          "x"
+                          [
+                            "y"
+                            [ "z" ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                  [
+                    "aa"
+                    [
+                      "cc"
+                      "dd"
+                    ]
+                  ]
+                ]);
+                expected = {
+                  a.b = [ "c" ];
+                  a.e = [ "f" ];
+                  u.v = [
+                    [
+                      "w"
+                      [
+                        "x"
+                        [
+                          "y"
+                          [ "z" ]
+                        ]
+                      ]
+                    ]
+                  ];
+                  aa.cc = [ "dd" ];
+                };
+              };
+            };
+            toAlist = {
+              test = {
+                expr = toAlist alistAttrsetFixture;
+                expected = [
+                  [
+                    "a"
+                    "b"
+                    [
+                      "c"
+                      1
+                    ]
+                  ]
+                  [
+                    "e"
+                    2
+                  ]
+                  [
+                    "x"
+                    { y = 3; }
+                    { z = 4; }
+                  ]
+                ];
+              };
+              "test: toAlist ∘ fromAlist" = {
+                expr = toAlist (fromAlist [
+                  [
+                    "a"
+                    "b"
+                  ]
+                  [
+                    "x"
+                    "z"
+                  ]
+                  [
+                    "b"
+                    "d"
+                  ]
+                ]);
+                expected = [
+                  [
+                    "a"
+                    "b"
+                  ]
+                  [
+                    "b"
+                    "d"
+                  ]
+                  [
+                    "x"
+                    "z"
+                  ]
+                ];
+              };
+              "test: fromAlist ∘ toAlist" = {
+                expected = alistAttrsetFixture;
+                expr = fromAlist (toAlist alistAttrsetFixture);
+              };
+            };
+            scalar = {
+              "test: basic" = {
+                expr = scalar [ "a" ] (parse "(a b)");
+                expected = "b";
+              };
+              "test: nested" = {
+                expr = scalar [ "a" "b" ] (parse "(a (b c))");
+                expected = "c";
+              };
+              "test: throws on empty value" = {
+                expr = scalar [ "a" ] (parse "(a)");
+                shouldThrow = true;
+              };
+            };
+            update = {
+              "test: transform root" = {
+                expr = update [ ] (map (
+                  n:
+                  if lib.head n == "a" then
+                    [
+                      "a"
+                      "new"
+                    ]
+                  else
+                    n
+                )) (parse "(a old)");
+                expected = [
+                  [
+                    "a"
+                    "new"
+                  ]
+                ];
+              };
+              "test: transform children" = {
+                expr = update [ "a" ] (_: [
+                  [
+                    "x"
+                    "y"
+                  ]
+                ]) (parse "(a (b c))");
+                expected = [
+                  [
+                    "a"
+                    [
+                      "x"
+                      "y"
+                    ]
+                  ]
+                ];
+              };
+              "test: missing key unchanged" = {
+                expr = update [ "missing" ] (_: [ ]) (parse "(a b)");
+                expected = [
+                  [
+                    "a"
+                    "b"
+                  ]
+                ];
+              };
+              "test: preserves siblings" = {
+                expr = update [ "b" ] (_: [ "new" ]) (parse ''
+                  (a 1)
+                  (b old)
+                  (c 2)
+                '');
+                expected = [
+                  [
+                    "a"
+                    "1"
+                  ]
+                  [
+                    "b"
+                    "new"
+                  ]
+                  [
+                    "c"
+                    "2"
+                  ]
+                ];
+              };
+              "test: nested update" = {
+                expr = update [ "a" "b" ] (_: [ "new" ]) (parse "(a (b old) (c kept))");
+                expected = [
+                  [
+                    "a"
+                    [
+                      "b"
+                      "new"
+                    ]
+                    [
+                      "c"
+                      "kept"
+                    ]
+                  ]
+                ];
+              };
+            };
+            toString = {
+              "test: basic" = {
+                expr = toString (parse "(name foo)");
+                expected = "(name foo)";
+              };
+              "test: empty" = {
+                expr = toString (parse "");
+                expected = "";
+              };
+              "test: multiple entries" = {
+                expr = toString (parse "(depends foo bar)");
+                expected = "(depends foo bar)";
+              };
+              "test: multiple toplevels" = {
+                expr = toString (parse ''
+                  (name foo)
+                  (version bar)
+                  (depends baz)
+                '');
+                expected = "(name foo)\n(version bar)\n(depends baz)";
+              };
+              "test: nested" = {
+                expr = toString (parse ''
+                  (depends
+                    (all_platforms
+                      (foo bar baz)))
+                '');
+                expected = "(depends (all_platforms (foo bar baz)))";
+              };
+            };
           };
-        };
-        toString = {
-          "test: basic" = {
-            expr = toString (parse "(name foo)");
-            expected = "(name foo)";
-          };
-          "test: empty" = {
-            expr = toString (parse "");
-            expected = "";
-          };
-          "test: multiple entries" = {
-            expr = toString (parse "(depends foo bar)");
-            expected = "(depends foo bar)";
-          };
-          "test: multiple toplevels" = {
-            expr = toString (parse ''
-              (name foo)
-              (version bar)
-              (depends baz)
-            '');
-            expected = "(name foo)\n(version bar)\n(depends baz)";
-          };
-          "test: nested" = {
-            expr = toString (parse ''
-              (depends
-                (all_platforms
-                  (foo bar baz)))
-            '');
-            expected = "(depends (all_platforms (foo bar baz)))";
-          };
-        };
-      };
+
+        failures =
+          let
+            normalize =
+              case:
+              if case ? shouldThrow then
+                {
+                  expr = lib.tryEval (lib.seq case.expr "didn't throw");
+                  expected = {
+                    success = false;
+                    value = false;
+                  };
+                }
+              else
+                case;
+
+            runCategory = category: lib.runTests (lib.mapAttrs (_: normalize) category);
+          in
+          lib.concatMap runCategory (lib.attrValues tests);
+      in
+      pkgs.runCommand "sexp-unit" { failed = failures != [ ]; } ''
+        if [[ -n "$failed" ]]; then
+          >&2 echo "${lib.generators.toPretty { } failures}"
+          exit 1
+        fi
+        touch $out
+      '';
   };
 }
