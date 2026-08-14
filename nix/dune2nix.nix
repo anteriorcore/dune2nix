@@ -67,8 +67,7 @@
             # unexpected behavior: use with caution.
             #
             # This is especially powerful for ocaml-compiler which takes very
-            # long time to build. Note that this depends on ocaml-compiler being
-            # "relocatable", which is only supported in version >= 5.5.0.
+            # long time to build.
             duneSeparateDeps ? false,
 
             # Sanity check to ensure that no cached entries are considered stale
@@ -558,15 +557,17 @@
                       # Assemble the envvars so the OCaml compilers (ocamlfind) can
                       # find them.
 
-                      for lib in "$pkg_dir"/*/target/lib; do
+                      toolchains="${finalAttrs.passthru.duneDeps}/cache/toolchains"
+
+                      for lib in "$pkg_dir"/*/target/lib "$toolchains"/*/target/lib "$toolchains"/*/target/lib/ocaml; do
                         addToSearchPath OCAMLPATH "$lib"
                       done
 
-                      for stub in "$pkg_dir"/*/target/lib/stublibs; do
+                      for stub in "$pkg_dir"/*/target/lib/stublibs "$toolchains"/*/target/lib/stublibs; do
                         addToSearchPath CAML_LD_LIBRARY_PATH "$stub"
                       done
 
-                      for bin in "$pkg_dir"/*/target/bin; do
+                      for bin in "$pkg_dir"/*/target/bin "$toolchains"/*/target/bin; do
                         addToSearchPath PATH "$bin"
                       done
 
