@@ -1,6 +1,4 @@
-(version 5.6.0+trunk)
+(version 5.5.0)
 
 (depends
  (all_platforms (ocaml-compiler)))
-
-(avoid)
