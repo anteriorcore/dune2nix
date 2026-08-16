@@ -1,4 +1,5 @@
 (executable
+ ; This stanza will be used to determine `meta.mainProgram`.
  (public_name demo)
  (name main)
  (libraries demo core))
