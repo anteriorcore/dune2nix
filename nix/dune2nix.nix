@@ -610,11 +610,20 @@
               args.installPhase or ''
                 runHook preInstall
 
-                # `dune install` is not supported with Dune package management
-                # (https://github.com/ocaml/dune/issues/14449).
-                # Apparently this is the way 🤷 - shun 2026-08
-                mkdir -p $out
-                cp -rL _build/install/$context/. $out/
+                ${
+                  if finalAttrs.duneSeparateDeps then
+                    ''
+                      dune install --context $context --prefix $out --pkg disabled --relocatable
+                    ''
+                  else
+                    # `dune install` is not supported with Dune package
+                    # management (https://github.com/ocaml/dune/issues/14449).
+                    # Apparently this is the way 🤷 - shun 2026-08
+                    ''
+                      mkdir -p $out
+                      cp -rL _build/install/$context/. $out/
+                    ''
+                }
 
                 runHook postInstall
               '';
