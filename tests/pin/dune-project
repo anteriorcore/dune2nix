@@ -11,7 +11,7 @@
 (package
  (name pin)
  (depends
-  (ocaml (>= 5.6.0))
+  (ocaml (= 5.5.0))
   ; small dependency-free lib
   num
   ))
