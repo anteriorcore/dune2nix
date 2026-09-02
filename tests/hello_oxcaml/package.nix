@@ -40,6 +40,6 @@ dune2nix.mkDuneProject {
 
   doInstallCheck = true;
   installCheckPhase = ''
-    $out/bin/hello_oxcaml | grep -q "2.000000"
+    $out/bin/hello_oxcaml | grep -q "43"
   '';
 }

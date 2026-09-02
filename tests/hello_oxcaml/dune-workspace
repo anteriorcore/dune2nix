@@ -5,7 +5,7 @@
 (repository
  (name oxcaml)
  ;; Updates stale patch
- (url "git+https://github.com/oxcaml/opam-repository.git#refs/pull/60/merge"))
+ (url "git+https://github.com/oxcaml/opam-repository.git#52d9ba2ea95f73f572aff000f3dba4a6bb3c745d"))
 
 (lock_dir
- (repositories oxcaml upstream))
+ (repositories overlay oxcaml upstream))

@@ -1,4 +1,4 @@
 (executable
  (public_name hello_oxcaml)
  (name main)
- (libraries hello_oxcaml stdlib_upstream_compatible))
+ (libraries hello_oxcaml))

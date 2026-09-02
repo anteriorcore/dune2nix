@@ -123,85 +123,93 @@
               stdenv.mkDerivation (
                 self:
                 let
-                  fetch =
+                  mkSrc =
                     {
                       name,
                       src,
-                      unpack ? true,
-                    }:
-                    stdenv.mkDerivation {
-                      name = "${name}-src";
-                      inherit src;
-                      # Some of the fixupPhases are extremely useful, others are
-                      # actively harmful to a supposedly transparent tarball unpacking
-                      # derivation.  Particularly block passes which change file
-                      # locations.
-                      dontMoveSbin = true;
-                      dontUnpack = !unpack;
-                      # Extract single file archives into single file derivations
-                      postHook = ''
-                        unpackCmdHooks+=(singleFileArchive)
-                        fileToCopy=.
-                        singleFileArchive() {
-                          for f in */ ; do
-                            if [[ -d "$f" ]]; then
-                              return 0
-                            fi
-                          done
-                          mkdir source
-                          fileToCopy="$1"
-                        }
-                        # This fixup phase has no individual flag, so override the
-                        # implementing function (yuck)
-                        _moveToShare() {
-                          true
-                        }
-                      '';
-                      # A very useful default phase, but there’s one particular
-                      # type of dune build instruction which (apparently) risks
-                      # causing build problems when combined with fixupPhase:
-                      # (patch ...).  Heuristic for fixupPhase of the source is
-                      # therefore a little complicated, but probably worth it:
-                      # enable, unless the dune build instructions include
-                      # patching.
-                      dontFixup =
-                        let
-                          build = self.passthru.sexp.build or [ ];
-                          imap0Recursive =
-                            f: lib.imap0 (idx: el: if builtins.isList el then imap0Recursive f el else f idx el);
-                          anyRecursive = f: builtins.any (el: if builtins.isList el then anyRecursive f el else f el);
-                          iany0Recursive = f: els: anyRecursive lib.id (imap0Recursive f els);
-                        in
-                        iany0Recursive (idx: el: el == "patch" && idx == 0) build;
-                      installPhase = ''
-                        runHook preInstall
+                      derivationArgs ? { },
+                      ...
+                    }@args:
+                    stdenv.mkDerivation (
+                      derivationArgs
+                      // {
+                        inherit src;
+                        name = "${name}-src";
+                        # Some of the fixupPhases are extremely useful, others are
+                        # actively harmful to a supposedly transparent tarball unpacking
+                        # derivation.  Particularly block passes which change file
+                        # locations.
+                        dontMoveSbin = true;
+                        # Extract single file archives into single file derivations
+                        postHook = ''
+                          unpackCmdHooks+=(singleFileArchive)
+                          fileToCopy=.
+                          singleFileArchive() {
+                            for f in */ ; do
+                              if [[ -d "$f" ]]; then
+                                return 0
+                              fi
+                            done
+                            mkdir source
+                            fileToCopy="$1"
+                          }
+                          # This fixup phase has no individual flag, so override the
+                          # implementing function (yuck)
+                          _moveToShare() {
+                            true
+                          }
+                        '';
+                        # A very useful default phase, but there’s one particular
+                        # type of dune build instruction which (apparently) risks
+                        # causing build problems when combined with fixupPhase:
+                        # (patch ...).  Heuristic for fixupPhase of the source is
+                        # therefore a little complicated, but probably worth it:
+                        # enable, unless the dune build instructions include
+                        # patching.
+                        dontFixup =
+                          let
+                            build = self.passthru.sexp.build or [ ];
+                            imap0Recursive =
+                              f: lib.imap0 (idx: el: if builtins.isList el then imap0Recursive f el else f idx el);
+                            anyRecursive = f: builtins.any (el: if builtins.isList el then anyRecursive f el else f el);
+                            iany0Recursive = f: els: anyRecursive lib.id (imap0Recursive f els);
+                          in
+                          iany0Recursive (idx: el: el == "patch" && idx == 0) build;
+                        installPhase = ''
+                          runHook preInstall
 
-                        if [[ -n "$dontUnpack" ]]; then
-                          fileToCopy="$src"
-                        fi
+                          if [[ -n "''${dontUnpack-}" ]]; then
+                            fileToCopy="$src"
+                          fi
 
-                        if [[ -d "$fileToCopy" ]]; then
-                          cp -r "$fileToCopy" $out
-                        else
-                          cp "$fileToCopy" $out
-                        fi
+                          if [[ -d "$fileToCopy" ]]; then
+                            cp -r "$fileToCopy" $out
+                          else
+                            cp "$fileToCopy" $out
+                          fi
 
-                        runHook postInstall
-                      '';
-                      phases = [
-                        "unpackPhase"
-                        "patchPhase"
-                        "installPhase"
-                        "fixupPhase"
-                      ];
-                    };
+                          runHook postInstall
+                        '';
+                        phases = [
+                          "unpackPhase"
+                          "patchPhase"
+                          "installPhase"
+                          "fixupPhase"
+                        ];
+                      }
+                    );
 
                   # Turn a dependency location sexp ([ "fetch" ... ], [ "copy" ... ])
                   # into an attrset.  Also converts a { fetch = ... } with a url and
                   # checksum into a { copy = <fixed output derivation fetcher of the
                   # url> }.
                   parseLocationSexp =
-                    name: unpack: nodes:
+                    {
+                      name,
+                      nodes,
+                      # Additional args propagated to the underlying derivation
+                      derivationArgs ? { },
+                    }:
                     let
                       a = sexp.fromAlist nodes;
                     in
@@ -216,8 +224,8 @@
                           if protocol == "file" then
                             src + "/${rest}"
                           else if protocol == "git+https" then
-                            fetch {
-                              inherit name unpack;
+                            mkSrc {
+                              inherit name derivationArgs;
                               src =
                                 let
                                   s = lib.splitString "#" rest;
@@ -229,8 +237,8 @@
                                 };
                             }
                           else if protocol == "http" || protocol == "https" then
-                            fetch {
-                              inherit name unpack;
+                            mkSrc {
+                              inherit name derivationArgs;
                               src = fetchurl {
                                 inherit url;
                                 hash = lib.replaceString "=" ":" node.checksum;
@@ -275,15 +283,18 @@
                   parseLockSexp =
                     name:
                     mapAttrsOptional {
-                      source = parseLocationSexp name true;
+                      source = nodes: parseLocationSexp { inherit name nodes; };
                       extra_sources =
                         v:
                         builtins.mapAttrs (
-                          _:
-                          # Don't unpack extra_sources: unlike the main source,
-                          # these are often  archives the build step reads and
-                          # unpacks itself. Let's not get into the way.
-                          parseLocationSexp name false
+                          _: nodes:
+                          parseLocationSexp {
+                            inherit name nodes;
+                            # Unlike the main source, extra_sources are often
+                            # archives the build step reads and unpacks itself:
+                            # let's not get into the way.
+                            derivationArgs.dontUnpack = true;
+                          }
                         ) (sexp.fromAlist v);
                     };
 
@@ -306,6 +317,8 @@
                   inherit name;
                   passthru = {
                     sexp = parseLockSexp name a;
+                    # Nothing to patch for `lock.dune`, it's only used during
+                    # relocking (i.e. not used during build).
                     text = if name == "lock.dune" then original else sexp.toString (lockFileToAlist self.passthru.sexp);
                   };
                   dontUnpack = true;
@@ -321,7 +334,7 @@
                   name: type:
                   # Lockdir contains: lockfile (`.pkg`), assets directory
                   # (`.files`), or lock.dune file.
-                  if type == "directory" then duneLock + "/${name}" else mkLockFile name
+                  if type == "directory" then "${duneLock}/${name}" else mkLockFile name
                 ) (builtins.readDir duneLock)
               )
             );

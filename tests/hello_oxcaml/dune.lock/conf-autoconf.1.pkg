@@ -1,4 +1,4 @@
-(version 0.2)
+(version 1)
 
 (build
  (all_platforms ((action (run autoconf -V)))))
@@ -18,7 +18,7 @@
   (= %{os_distribution} gentoo))
  ((autoconf)
   (= %{os_distribution} nixos))
- ((autoconf)
+ ((automake autoconf)
   (and_absorb_undefined_var
    (= %{os} macos)
    (= %{os_distribution} homebrew)))

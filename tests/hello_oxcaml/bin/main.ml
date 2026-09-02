@@ -1,6 +1,7 @@
-module F = Stdlib_upstream_compatible.Float_u
+(* Sample program taken from https://dune.readthedocs.io/en/stable/tutorials/dune-package-management/oxcaml.html *)
 
 let () =
-  let x : float# = F.of_float 1.0 in
-  let y : float# = F.of_float 1.0 in
-  Printf.printf "%f\n" (F.to_float (F.add x y))
+  (* The `local_` keyword requires OxCaml *)
+  let local_ i = 42 in
+  let j = i + 1 in
+  Printf.printf "%d\n" j
