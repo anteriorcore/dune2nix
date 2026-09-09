@@ -75,6 +75,12 @@
             # long time to build.
             duneSeparateDeps ? false,
 
+            # Subdirectories of each dependency's `target/` to preserve in the
+            # dependencies derivation. Under normal circumstances there's no
+            # reason to touch this: it's an escape hatch since duneSeparateDeps
+            # is a hack that reaches into dune internals.
+            __duneDepsKeepTargets ? [ "lib" "bin" ],
+
             # Sanity check to ensure that no cached entries are considered stale
             # by dune.  In a Nix context, that almost certainly means something
             # is wrong, and the failure mode is painful as it silently rebuilds
@@ -374,7 +380,17 @@
                   runHook preInstall
 
                   mkdir -p $out/cache
-                  cp -r _build $out/
+                  for pkgdir in _build/_private/default/.pkg/*/; do
+                    pkgname=$(basename "$pkgdir")
+                    for subdir in $__duneDepsKeepTargets; do
+                      src="$pkgdir/target/$subdir"
+                      if [[ -d "$src" ]]; then
+                        dist="$out/_build/_private/default/.pkg/$pkgname/target"
+                        mkdir -p "$dist"
+                        cp -r "$src" "$dist/$subdir"
+                      fi
+                    done
+                  done
 
                   runHook postInstall
                 '';
@@ -404,6 +420,7 @@
                 "context"
                 "duneBuildFlags"
                 "strictDeps"
+                "__duneDepsKeepTargets"
               ] finalAttrs
             );
           in
@@ -415,7 +432,7 @@
             # store.  Strongly recommended to leave this as-is.
             DUNE_CACHE_STORAGE_MODE = args.DUNE_CACHE_STORAGE_MODE or "copy";
 
-            inherit duneSeparateDeps duneCheckNoCacheMiss;
+            inherit duneSeparateDeps duneCheckNoCacheMiss __duneDepsKeepTargets;
 
             passthru = args.passthru or { } // {
               inherit
@@ -675,6 +692,7 @@
           "enableParallelBuilding"
           "srcOverrides"
           "duneSeparateDeps"
+          "__duneDepsKeepTargets"
         ];
       };
 
