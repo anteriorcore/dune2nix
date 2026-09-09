@@ -216,6 +216,7 @@
                                 builtins.fetchGit {
                                   url = "https://${builtins.head s}";
                                   rev = lib.last s;
+                                  shallow = true;
                                 };
                             }
                           else if protocol == "http" || protocol == "https" then
