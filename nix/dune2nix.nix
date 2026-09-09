@@ -11,7 +11,7 @@
       writableTmpDirAsHomeHook,
       writeText,
       zstd,
-      overrideScope ? _: _: { },
+      override ? _: _: { },
     }:
     let
       # Like lib.attrsets.getAttrs but skip missing names
@@ -723,5 +723,5 @@
         inherit mkDuneProject mkDuneWorkspace;
       });
     in
-    scope.overrideScope overrideScope;
+    scope.overrideScope override;
 }
