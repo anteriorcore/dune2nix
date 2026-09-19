@@ -6,7 +6,6 @@
       dune,
       fetchurl,
       linkFarm,
-      jq,
       stdenv,
       writableTmpDirAsHomeHook,
       writeText,
@@ -74,16 +73,6 @@
             # This is especially powerful for ocaml-compiler which takes very
             # long time to build.
             duneSeparateDeps ? false,
-
-            # Sanity check to ensure that no cached entries are considered stale
-            # by dune.  In a Nix context, that almost certainly means something
-            # is wrong, and the failure mode is painful as it silently rebuilds
-            # the dependency, which can surreptitiously inflate build times.
-            # Only makes sense when getting cache from a separate derivation in
-            # the first place.  (I’ve seen this check fail on a derivation that
-            # was built atomically, and at that point, dune my dear, it’s out of
-            # my hands...)
-            duneCheckNoCacheMiss ? duneSeparateDeps,
 
             # Dune (Opam) gives a lot of liberty to the package build step and
             # it is technically possible to produce different build outputs
@@ -416,7 +405,7 @@
             # store.  Strongly recommended to leave this as-is.
             DUNE_CACHE_STORAGE_MODE = args.DUNE_CACHE_STORAGE_MODE or "copy";
 
-            inherit duneSeparateDeps duneCheckNoCacheMiss;
+            inherit duneSeparateDeps;
 
             passthru = args.passthru or { } // {
               inherit
@@ -431,14 +420,11 @@
             # separate derivation.
             buildInputs = args.buildInputs or [ ] ++ lib.optionals (!finalAttrs.duneSeparateDeps) [ zstd ];
 
-            nativeBuildInputs =
-              (args.nativeBuildInputs or [ ])
-              ++ [
-                dune
-                # Dune wants to write in ~/.cache
-                writableTmpDirAsHomeHook
-              ]
-              ++ lib.optionals finalAttrs.duneCheckNoCacheMiss [ jq ];
+            nativeBuildInputs = (args.nativeBuildInputs or [ ]) ++ [
+              dune
+              # Dune wants to write in ~/.cache
+              writableTmpDirAsHomeHook
+            ];
 
             # Set up the cache in case the program wants to use it.
             duneConfigureCachePhase = ''
@@ -463,7 +449,7 @@
             prePhases = args.prePhases or [ ] ++ [ "duneConfigureCachePhase" ];
 
             duneLoadCache = ''
-              runHook preDuneLoacCache
+              runHook preDuneLoadCache
 
               rm -rf ${lockDir}
             ''
@@ -472,7 +458,7 @@
             ''
             + ''
 
-              runHook postDuneLoacCache
+              runHook postDuneLoadCache
             '';
 
             # Load pre-build to avoid changing the cache at all during configure
@@ -537,16 +523,6 @@
             buildPhase =
               args.buildPhase or ''
                 runHook preBuild
-
-                if [[ -n "''${duneCheckNoCacheMiss-}" ]]; then
-                  # Semantics of DUNE_TRACE envvar are a bit complicated: either
-                  # comma separated, XOR +/- alternating.
-                  if [[ "''${DUNE_TRACE-}" == *,* ]]; then
-                    export DUNE_TRACE="$DUNE_TRACE,cache"
-                  else
-                    export DUNE_TRACE="''${DUNE_TRACE-}+cache"
-                  fi
-                fi
 
                 ${
                   if finalAttrs.duneSeparateDeps then
@@ -620,31 +596,6 @@
                 runHook postInstall
               '';
 
-            duneCheckNoCacheMissPhase = ''
-              if [[ -n "''${duneCheckNoCacheMiss-}" ]]; then
-                outfile=dune-cache-misses.jsonl
-                dune trace cat --trace-file _build/trace.csexp \
-                  | jq -c 'select(.cat == "cache" and .name == "workspace_local_miss" and (.args.reason | startswith("rule or dependencies changed")))' \
-                  > $outfile
-                if [[ -s $outfile ]]; then
-                  cat $outfile
-                  >&2 cat <<'EOF'
-
-
-              ERROR: Dune had cache misses during build.  This means dune2nix
-              was not able to set up an environment where dune can reuse the
-              cache it generated, itself.  The failure mode is that builds
-              succeed, but become very slow, as every single derivation will
-              require a rebuild of all dependencies.  If you know what you're
-              doing, you can set duneCheckNoCacheMiss to 'false' on this
-              derivation.
-
-              EOF
-                  exit 1
-                fi
-              fi
-            '';
-
             # Also ensure there is at least some directory in the $cache output,
             # if specified.
             installBuildDirsPhase = ''
@@ -662,10 +613,7 @@
               runHook postInstallBuildDir
             '';
 
-            preFixupPhases = args.preFixupPhases or [ ] ++ [
-              "installBuildDirsPhase"
-              "duneCheckNoCacheMissPhase"
-            ];
+            preFixupPhases = args.preFixupPhases or [ ] ++ [ "installBuildDirsPhase" ];
           };
 
         excludeDrvArgNames = [
