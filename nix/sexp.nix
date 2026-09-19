@@ -55,11 +55,36 @@
             # Poor man's s-expression tokenizer
             tokenize =
               text:
+              let
+                # A bit opinionated but most sexp languages uses this.
+                lcPrefix = ";";
+
+                token = "(${
+                  lib.join "|" [
+                    # String atom
+                    ''"(${
+                      lib.join "|" [
+                        # Not " or \
+                        ''[^"\\]''
+                        # Escaped character (including \")
+                        ''\\.''
+                      ]
+                    })*"''
+                    # Line comment, up to (and not including) the next newline
+                    "${lib.escapeRegex lcPrefix}[^\n]*"
+                    # Single parens
+                    "[()]"
+                    # Anything else that isn't a paren or whitespace
+                    "[^()[:space:]]+"
+                  ]
+                })";
+              in
               lib.pipe text [
-                # Capture parens or chars that are neither parens nor space
-                (lib.split "([()]|[^()[:space:]]+)")
+                (lib.split token)
                 (lib.filter lib.isList)
-                lib.concatLists
+                (map lib.head)
+                # Drop the comments
+                (lib.filter (tok: !(lib.hasPrefix lcPrefix tok)))
               ];
           in
           lib.pipe text [
@@ -272,6 +297,45 @@
                           "bar"
                         ]
                       ]
+                    ]
+                  ]
+                ];
+              };
+              "test: parse with comments" = {
+                expr = parse ''
+                  ; leading comment
+                  (name foo) ; inline comment
+                  (depends foo ; comment inside list
+                    bar)
+                '';
+                expected = [
+                  [
+                    "name"
+                    "foo"
+                  ]
+                  [
+                    "depends"
+                    "foo"
+                    "bar"
+                  ]
+                ];
+              };
+              "test: parse with quoted strings" = {
+                expr = parse ''
+                  (libraries "foo bar")
+                  (action (run echo "a (b) \"d"))
+                '';
+                expected = [
+                  [
+                    "libraries"
+                    "\"foo bar\""
+                  ]
+                  [
+                    "action"
+                    [
+                      "run"
+                      "echo"
+                      "\"a (b) \\\"d\""
                     ]
                   ]
                 ];
