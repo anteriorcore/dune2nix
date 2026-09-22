@@ -8,4 +8,7 @@ dune2nix.mkDuneProject {
   duneLock = ../dune.lock;
 
   duneSeparateDeps = true;
+
+  # Intentionally turning off to test
+  duneTreeshakeDeps = false;
 }

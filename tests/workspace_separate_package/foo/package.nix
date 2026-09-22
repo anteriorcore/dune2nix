@@ -4,4 +4,5 @@ dune2nix.mkDuneProject {
   src = ../.;
   duneProject = ./dune-project;
   duneSeparateDeps = true;
+  duneTreeshakeDeps = true;
 }

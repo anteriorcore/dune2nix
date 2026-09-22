@@ -74,6 +74,12 @@
             # long time to build.
             duneSeparateDeps ? false,
 
+            # Treeshake dependencies derivs by retaining only the dirs that are
+            # relevant to the build. Use with caution: by setting this you are
+            # depending on the Dune internals, and the benefit of treeshaking is
+            # minimal unless you have many GB worth of dependencies.
+            duneTreeshakeDeps ? false,
+
             # Dune (Opam) gives a lot of liberty to the package build step and
             # it is technically possible to produce different build outputs
             # depending on the number of concurrency. However, just like many
@@ -364,7 +370,26 @@
                   runHook preInstall
 
                   mkdir -p $out/cache
-                  cp -r _build $out/
+                  ${
+                    if duneTreeshakeDeps then
+                      ''
+                        for pkgdir in _build/_private/default/.pkg/*/; do
+                          pkgname="$(basename "$pkgdir")"
+                          for subdir in lib bin; do
+                            src="$pkgdir/target/$subdir"
+                            if [[ -d "$src" ]]; then
+                              dist="$out/_build/_private/default/.pkg/$pkgname/target"
+                              mkdir -p "$dist"
+                              cp -r "$src" "$dist/$subdir"
+                            fi
+                          done
+                        done
+                      ''
+                    else
+                      ''
+                        cp -r _build $out/
+                      ''
+                  }
 
                   runHook postInstall
                 '';
@@ -624,6 +649,7 @@
           "enableParallelBuilding"
           "srcOverrides"
           "duneSeparateDeps"
+          "duneTreeshakeDeps"
         ];
       };
 

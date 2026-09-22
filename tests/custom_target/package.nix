@@ -7,6 +7,7 @@ let
     src = ./.;
     target = "@runtest";
     duneSeparateDeps = true;
+    duneTreeshakeDeps = true;
   };
 
   # 2: override the final derivation:
@@ -14,6 +15,7 @@ let
     (dune2nix.mkDuneProject {
       src = ./.;
       duneSeparateDeps = true;
+      duneTreeshakeDeps = true;
     }).overrideAttrs
       { target = "@runtest"; };
 in

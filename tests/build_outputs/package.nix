@@ -9,6 +9,7 @@ let
     src = ./.;
     duneIncludeBuildOutputs = true;
     duneSeparateDeps = true;
+    duneTreeshakeDeps = true;
   };
   two = one.overrideAttrs { duneSeparateDeps = true; };
 in
