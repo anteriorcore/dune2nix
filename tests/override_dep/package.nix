@@ -8,6 +8,7 @@ dune2nix.mkDuneProject {
   src = ./.;
   doCheck = true;
   duneSeparateDeps = true;
+  duneTreeshakeDeps = true;
   srcOverrides =
     final: prev:
     lib.concatMapAttrs (
