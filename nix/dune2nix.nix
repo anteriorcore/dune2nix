@@ -10,7 +10,21 @@
       writableTmpDirAsHomeHook,
       writeText,
       zstd,
-      overrideScope ? _: _: { },
+
+      # Overlay applied to the returned scope.
+      #
+      # When this file is called with `callPackage`, which returns a new scope,
+      # with an `.override` attribute. Calling the scope's own `.overrideScope`
+      # on that returns a new scope without `.override`, so you would no longer
+      # be able to change these arguments.
+      #
+      # Passing overlay here instead makes it an ordinary `callPackage` argument
+      # so `.override` keeps working and keeps the overlay applied.
+      #
+      # `overrides` is a confusing convention used by the Nix community - it
+      # we originally named `overrideScopes`, but that caused an infinite
+      # recursion since `makeScope` adds its `overrideScope` to the scope.
+      overrides ? _: _: { },
     }:
     let
       # Like lib.attrsets.getAttrs but skip missing names
@@ -698,5 +712,5 @@
         inherit mkDuneProject mkDuneWorkspace;
       });
     in
-    scope.overrideScope overrideScope;
+    scope.overrideScope overrides;
 }
