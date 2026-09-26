@@ -53,6 +53,12 @@
             name,
             src,
             srcOverrides ? _: _: { },
+            # A lib.fileset compatible root designation for the source.  The
+            # dependencies are passed through fileSet as a root, and not all
+            # valid paths for src are valid fileset roots.  If necessary, you
+            # can specify a raw path for the root here.  If you’re not sure if
+            # you need this: you don’t.
+            duneRoot ? src,
             duneWorkspace ? src + "/dune-workspace",
 
             # Create a separate derivation with only the dependencies (target
@@ -334,14 +340,14 @@
                 # feel like implementing that, so we're skipping on this for
                 # now.
                 src = lib.fileset.toSource {
-                  root = finalAttrs.src;
+                  root = duneRoot;
                   fileset = lib.fileset.fileFilter (
                     file:
                     lib.elem file.name [
                       "dune-project"
                       "dune-workspace"
                     ]
-                  ) finalAttrs.src;
+                  ) duneRoot;
                 };
 
                 target = "@pkg-install";
@@ -643,6 +649,7 @@
 
         excludeDrvArgNames = [
           "duneProject"
+          "duneRoot"
           "duneWorkspace"
           "duneLock"
           "context"
