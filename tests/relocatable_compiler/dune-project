@@ -1,0 +1,9 @@
+(lang dune 3.21)
+
+(name relocatable_compiler)
+
+(generate_opam_files false)
+
+(package
+ (name relocatable_compiler)
+ (depends (ocaml (>= 5.5.0)) relocatable))
