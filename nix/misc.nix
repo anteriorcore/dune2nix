@@ -60,6 +60,13 @@
             fi
             touch $out
           '';
+        }
+        // {
+          docsync = pkgs.runCommand "docsync" { nativeBuildInputs = [ inputs'.tools.packages.docsync ]; } ''
+            docsync-check ${./dune2nix.nix} ${../tests}
+            touch $out
+          '';
+
         };
     };
 }

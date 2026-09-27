@@ -19,7 +19,8 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     systems.url = "github:nix-systems/default";
     tools = {
-      url = "github:anteriorcore/tools";
+      # NOMERGE
+      url = "github:anteriorcore/tools/pull/51/merge";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.treefmt-nix.follows = "treefmt-nix";
       inputs.flake-parts.follows = "flake-parts";
