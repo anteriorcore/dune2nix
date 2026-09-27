@@ -366,15 +366,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1787695266,
-        "narHash": "sha256-U1LGLHcHRjyIwaKWAI6W3JNOQp+wdv58m/oVruAUTYw=",
+        "lastModified": 1790529012,
+        "narHash": "sha256-Do0AaIYKPD10BWXjbmqMmQun31M70Lph4Nbwdn0DhNU=",
         "owner": "anteriorcore",
         "repo": "package-lock2nix",
-        "rev": "bd1771a8bdaf792fbc97a619fe6cf2d24e36fad9",
+        "rev": "a974edc2756ddaabaaaa8ce951121fc463b27c29",
         "type": "github"
       },
       "original": {
         "owner": "anteriorcore",
+        "ref": "pull/57/merge",
         "repo": "package-lock2nix",
         "type": "github"
       }
@@ -505,15 +506,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1789107878,
-        "narHash": "sha256-6TXxWdnMuuD6oKQ67O0LuhdTq00eE99pAnHaLdVBcoc=",
+        "lastModified": 1790529683,
+        "narHash": "sha256-pvwYvYsG5qlU+SXwWy5KKgFGEFG54K1tbdGxb4ap27Y=",
         "owner": "anteriorcore",
         "repo": "tools",
-        "rev": "82cc51278a0badc8bacf0659d7d82b6bd18c7762",
+        "rev": "3f45a8aea90b7437c85af8e0fd4ea0361ca23287",
         "type": "github"
       },
       "original": {
         "owner": "anteriorcore",
+        "ref": "pull/51/merge",
         "repo": "tools",
         "type": "github"
       }
