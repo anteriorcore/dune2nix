@@ -1,0 +1,158 @@
+(version 5.4.0-ox2)
+
+(install
+ (all_platforms
+  (run sh -exc "PATH=%{build}/init_deps/bin/:$PATH make install")))
+
+(build
+ (choice
+  ((((arch x86_64)
+     (os linux))
+    ((arch arm64)
+     (os linux)))
+   ((action
+     (progn
+      (patch ignore-opam.patch)
+      (run tar -xf init-compiler.tar.gz)
+      (run tar -xf init-dune.tbz)
+      (run tar -xf init-menhir.tar.gz)
+      (run
+       sh
+       -exc
+       "cd ocaml-5.4.0 && ./configure --prefix %{build}/init_deps --disable-ocamldoc")
+      (run sh -exc "make -C ocaml-5.4.0 -j%{jobs}")
+      (run sh -exc "make -C ocaml-5.4.0 install")
+      (run
+       sh
+       -exc
+       "cd dune-3.20.2; PATH=%{build}/init_deps/bin/:$PATH ocaml boot/bootstrap.ml -j %{jobs}")
+      (run
+       sh
+       -exc
+       "cd dune-3.20.2; PATH=%{build}/init_deps/bin/:$PATH ./_boot/dune.exe build dune.install --release --profile dune-bootstrap -j %{jobs}")
+      (run
+       sh
+       -exc
+       "cd dune-3.20.2; PATH=%{build}/init_deps/bin/:$PATH ./_boot/dune.exe install --root %{build}/dune-3.20.2 --prefix %{build}/init_deps/ dune")
+      (run
+       sh
+       -exc
+       "cd menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa; PATH=%{build}/init_deps/bin/:$PATH %{build}/init_deps/bin/dune build --profile release --root %{build}/menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa @install -j %{jobs}")
+      (run
+       sh
+       -exc
+       "cd menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa; PATH=%{build}/init_deps/bin/:$PATH %{build}/init_deps/bin/dune install --prefix %{build}/init_deps/ -p menhirLib,menhir -j %{jobs}")
+      (run sh -exc "autoconf || autoconf27")
+      (run
+       sh
+       -exc
+       "PATH=%{build}/init_deps/bin/:$PATH ./configure --enable-middle-end=flambda2 --enable-runtime5 --enable-stack-checks --enable-poll-insertion --enable-multidomain --disable-warn-error '--prefix=%{prefix}' '--with-dune=%{build}/init_deps/bin/dune'")
+      (run
+       sh
+       -exc
+       "unset INSIDE_DUNE; PATH=%{build}/init_deps/bin/:$PATH make -j%{jobs}")
+      (run
+       sh
+       ./write-config.sh
+       %{pkg-self:name}
+       -v
+       release:string
+       5.4.0-ox2
+       -v
+       commit:string
+       172cba3614a4a1e8d621d88e3d11de4ad80bed33)))))
+  ((((arch x86_64)
+     (os macos))
+    ((arch arm64)
+     (os macos)))
+   ((action
+     (progn
+      (patch ignore-opam.patch)
+      (run tar -xf init-compiler.tar.gz)
+      (run tar -xf init-dune.tbz)
+      (run tar -xf init-menhir.tar.gz)
+      (run
+       sh
+       -exc
+       "cd ocaml-5.4.0 && ./configure --prefix %{build}/init_deps --disable-ocamldoc CC=cc ASPP='cc -c'")
+      (run sh -exc "make -C ocaml-5.4.0 -j%{jobs}")
+      (run sh -exc "make -C ocaml-5.4.0 install")
+      (run
+       sh
+       -exc
+       "cd dune-3.20.2; PATH=%{build}/init_deps/bin/:$PATH ocaml boot/bootstrap.ml -j %{jobs}")
+      (run
+       sh
+       -exc
+       "cd dune-3.20.2; PATH=%{build}/init_deps/bin/:$PATH ./_boot/dune.exe build dune.install --release --profile dune-bootstrap -j %{jobs}")
+      (run
+       sh
+       -exc
+       "cd dune-3.20.2; PATH=%{build}/init_deps/bin/:$PATH ./_boot/dune.exe install --root %{build}/dune-3.20.2 --prefix %{build}/init_deps/ dune")
+      (run
+       sh
+       -exc
+       "cd menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa; PATH=%{build}/init_deps/bin/:$PATH %{build}/init_deps/bin/dune build --profile release --root %{build}/menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa @install -j %{jobs}")
+      (run
+       sh
+       -exc
+       "cd menhir-20231231-d3d815e4f554da68b8c247241c8f8678926eecaa; PATH=%{build}/init_deps/bin/:$PATH %{build}/init_deps/bin/dune install --prefix %{build}/init_deps/ -p menhirLib,menhir -j %{jobs}")
+      (run sh -exc "autoconf || autoconf27")
+      (run
+       sh
+       -exc
+       "PATH=%{build}/init_deps/bin/:$PATH ./configure --enable-middle-end=flambda2 --enable-runtime5 --enable-stack-checks --enable-poll-insertion --enable-multidomain --disable-warn-error '--prefix=%{prefix}' '--with-dune=%{build}/init_deps/bin/dune'")
+      (run
+       sh
+       -exc
+       "unset INSIDE_DUNE; PATH=%{build}/init_deps/bin/:$PATH make -j%{jobs}")
+      (run
+       sh
+       ./write-config.sh
+       %{pkg-self:name}
+       -v
+       release:string
+       5.4.0-ox2
+       -v
+       commit:string
+       172cba3614a4a1e8d621d88e3d11de4ad80bed33)))))))
+
+(depends
+ (all_platforms
+  (conf-autoconf conf-which)))
+
+(source
+ (fetch
+  (url https://github.com/oxcaml/oxcaml/archive/refs/tags/5.4.0-ox2.tar.gz)
+  (checksum
+   sha256=4779df67de6ba46073a28f2ef498131f845137fd29c04fa345b5d536bf3febf1)))
+
+(avoid)
+
+(exported_env
+ (= CAML_LD_LIBRARY_PATH "\%{lib}%/stublibs"))
+
+(extra_sources
+ (init-compiler.tar.gz
+  (fetch
+   (url https://github.com/ocaml/ocaml/archive/5.4.0.tar.gz)
+   (checksum
+    sha256=4ab55ac30d247e20f35df20a9f7596e5eb5f92fbbd0f8e3e54838bbc3edf931e)))
+ (init-dune.tbz
+  (fetch
+   (url
+    https://github.com/ocaml/dune/releases/download/3.20.2/dune-3.20.2.tbz)
+   (checksum
+    sha256=b1a86b2d60bdb4a8b9bb6861bdf2f9f28a6e7cb5d833ce81afecceb9ef9ca549)))
+ (init-menhir.tar.gz
+  (fetch
+   (url
+    https://gitlab.inria.fr/fpottier/menhir/-/archive/20231231/archive.tar.gz)
+   (checksum
+    sha512=620ff3443143535e03ac98c5e8ee2ddf9ba48f8cfe441302118def1da3e03ffac7f48d4d4cb129766b625ecad0fb341da1baa0169dee8b6d07a5b0bbb735cf2f)))
+ (write-config.sh
+  (fetch
+   (url
+    https://raw.githubusercontent.com/dra27/mingw-w64-shims/refs/tags/1.0.1/write-config.sh)
+   (checksum
+    sha512=00c4e7c605e46c8fb4d24c40da0a9317e31e3ec723a7aac59546b1cfb180024cc76dbd27c2aca8d223047ad4b0a4bcd047443fc64a6e218a21931aaa672c3e71))))

@@ -1,0 +1,26 @@
+(version 1)
+
+(build
+ (all_platforms ((action (run which which)))))
+
+(depexts
+ ((which)
+  (= %{os_distribution} centos))
+ ((which)
+  (= %{os_family} fedora))
+ ((which)
+  (= %{os_distribution} ol))
+ ((which)
+  (or_absorb_undefined_var
+   (= %{os_family} suse)
+   (= %{os_family} opensuse)))
+ ((debianutils)
+  (= %{os_family} debian))
+ ((debianutils)
+  (= %{os_family} ubuntu))
+ ((which)
+  (= %{os_distribution} nixos))
+ ((which)
+  (= %{os_family} arch))
+ ((which)
+  (= %{os_family} altlinux)))
