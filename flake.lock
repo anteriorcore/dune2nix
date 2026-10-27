@@ -366,11 +366,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789540236,
-        "narHash": "sha256-34RY/j6Hq03LGvaDAhJ2PsFlbWP70GzZt/41AqsbbB4=",
+        "lastModified": 1790533476,
+        "narHash": "sha256-R4bUef+ORBxFq/NN6YbqixjNKhY5QK0a0AwUK883ypA=",
         "owner": "anteriorcore",
         "repo": "package-lock2nix",
-        "rev": "10711ffe116d177d5e9a3b43bdc51c94ab5fe20a",
+        "rev": "b703752ed78e15b08f9a68d6f24339a1fbff5213",
         "type": "github"
       },
       "original": {
@@ -505,11 +505,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791059460,
-        "narHash": "sha256-C3ZwwM1EkmgicUd8odyA9ETMmBz1q40GaR68bVn0zEk=",
+        "lastModified": 1792124564,
+        "narHash": "sha256-mMFWtYNJ5zaBqgLOLXViHQ31LE0oWoWpv44kmyLG0dI=",
         "owner": "anteriorcore",
         "repo": "tools",
-        "rev": "3192581e4d2fd7c37e5f44e1cd5b85d2951d8e9c",
+        "rev": "5c3fc625c9f011046eb011082fa729e8f7aaf857",
         "type": "github"
       },
       "original": {
