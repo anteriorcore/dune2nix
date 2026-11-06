@@ -37,8 +37,8 @@
 
           failures = lib.runTests {
             "test basic meta main program" = {
-              expr = config.legacyPackages.tests.demo.meta.mainProgram;
-              expected = "demo";
+              expr = config.legacyPackages.tests.no_deps.meta.mainProgram;
+              expected = "no_deps";
             };
             "test passthru not overridden" = {
               expr =
