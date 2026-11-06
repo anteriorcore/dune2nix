@@ -12,6 +12,9 @@
     }:
     let
       dune2nix = pkgs.callPackage self.lib.dune2nix { };
+      scope = lib.makeScope pkgs.newScope (self: {
+        inherit dune2nix;
+      });
     in
     {
       _module.args.pkgs = import inputs.nixpkgs {
@@ -21,10 +24,12 @@
 
       packages = { inherit (inputs'.tools.packages) nix-flake-check-changed nix-grep-to-build; };
 
-      legacyPackages.tests = lib.packagesFromDirectoryRecursive {
-        callPackage = lib.callPackageWith (pkgs // { inherit dune2nix; });
-        directory = ../tests;
-      };
+      legacyPackages.tests = lib.filterAttrs (_: lib.isDerivation) (
+        lib.packagesFromDirectoryRecursive {
+          inherit (scope) newScope callPackage;
+          directory = ../tests;
+        }
+      );
 
       checks =
         let
