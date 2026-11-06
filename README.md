@@ -8,18 +8,10 @@ codegen, no
 [Import From Derivation (IFD)](https://nix.dev/manual/nix/2.26/language/import-from-derivation),
 no hardcoded hash.
 
-## Overlay
-
-The version of Dune included in the current Nixpkgs release (25.11) has critical
-bugs related to lockfile handling. `dune2nix` provides an optional overlay that
-uses the latest build that address these issues. For more details, see
-[`./nix/overlays.nix`](./nix/overlays.nix).
-
 ## Demo
 
-There is a minimal demo project that uses
-[`janestreet/core`](https://github.com/janestreet/core) in
-[`./tests/demo`](./tests/demo).
+There is a demo project in [`./demo`](./demo) that uses dune2nix with
+[Nix flakes](https://nixos.wiki/wiki/flakes).
 
 ## Copyright & License
 
