@@ -1,0 +1,57 @@
+From fe79a76e318514e67e80ae2222a24a8541ac826a Mon Sep 17 00:00:00 2001
+From: Shun Ueda <git@shunueda.org>
+Date: Sat, 3 Oct 2026 23:20:50 -0400
+Subject: [PATCH] fix(patch): treat empty patch as no-op (#16519)
+
+Opam treats an empty patch as a no-op. This patch makes Dune match
+Opam's behavior.
+
+
+https://github.com/ocaml/opam/blob/18a8abc5b138bc5c3bc139985e583b9d44262e8b/src/core/opamPatch.ml#L355
+
+Signed-off-by: Shun Ueda <git@shunueda.org>
+---
+ src/dune_patch/dune_patch.ml | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/dune_patch/dune_patch.ml b/src/dune_patch/dune_patch.ml
+index 700a726f27..fb0d9feecc 100644
+--- a/src/dune_patch/dune_patch.ml
++++ b/src/dune_patch/dune_patch.ml
+@@ -133,18 +133,22 @@ let prefix_of_patch ~patch_loc patch_string =
+ ;;
+ 
+ let parse_patches ~loc ~patch_file patch_contents =
+-  let patch_loc = Loc.in_file patch_file in
+-  let p = prefix_of_patch ~patch_loc patch_contents in
+-  let patch_contents = disambiguate_git_header_filenames patch_contents in
+-  match Patch.parse ~loc ~p patch_contents with
+-  | [] ->
+-    User_error.raise
+-      ~loc
+-      [ Pp.text
+-          "Could not parse the patch file. Only unified diff format is supported. \
+-           Context diffs and ed commands are not supported."
+-      ]
+-  | patches -> patches
++  (* Empty patches are treated as a no-op *)
++  if String.is_empty (String.trim patch_contents)
++  then []
++  else (
++    let patch_loc = Loc.in_file patch_file in
++    let p = prefix_of_patch ~patch_loc patch_contents in
++    let patch_contents = disambiguate_git_header_filenames patch_contents in
++    match Patch.parse ~loc ~p patch_contents with
++    | [] ->
++      User_error.raise
++        ~loc
++        [ Pp.text
++            "Could not parse the patch file. Only unified diff format is supported. \
++             Context diffs and ed commands are not supported."
++        ]
++    | patches -> patches)
+ ;;
+ 
+ let write_patch_result ~file target_path = function
+-- 
+2.54.0
