@@ -45,3 +45,25 @@ jobs:
       - run: nix flake show
       - run: nix flake lock --no-update-lock-file
       - run: nix flake check --no-build
+
+  demo:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04-arm
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866
+        if: github.repository_owner == 'anteriorcore'
+        with:
+          name: ${{ vars.CACHIX_CACHE_NAME }}
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - run: nix run .#demo

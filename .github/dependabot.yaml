@@ -14,3 +14,11 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "build"
+  - package-ecosystem: "nix"
+    cooldown:
+      default-days: 10
+    directory: "/demo"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build"
