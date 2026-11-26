@@ -9,8 +9,10 @@
       # Be careful when updating dune; it’s unstable, development can be
       # haphazard, and different minor versions introduce big changes.  Read the
       # release notes *carefully*.
-      url = "github:ocaml/dune/3.24.2";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:ocaml/dune/3.25.0";
+      # Don't follow: Dune does not use the standard nixpkgs, instead a custom
+      # one: https://github.com/nix-ocaml/nix-overlays
+      # inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
